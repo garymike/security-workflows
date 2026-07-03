@@ -1,0 +1,68 @@
+name: Security audit (reusable)
+
+on:
+  workflow_call:
+
+jobs:
+  audit:
+    name: Repository security settings
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Check Dependabot alerts
+        run: |
+          STATUS=$(gh api repos/$GITHUB_REPOSITORY/vulnerability-alerts -i 2>&1 | head -1)
+          if echo "$STATUS" | grep -q "204"; then
+            echo "Dependabot alerts: enabled"
+          else
+            echo "::warning::Dependabot alerts are disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings/security_analysis"
+          fi
+
+      - name: Check Dependabot auto-fix
+        run: |
+          STATUS=$(gh api repos/$GITHUB_REPOSITORY/automated-security-fixes -i 2>&1 | head -1)
+          if echo "$STATUS" | grep -q "204"; then
+            echo "Dependabot auto-fix: enabled"
+          else
+            echo "::warning::Dependabot automated security fixes are disabled"
+          fi
+
+      - name: Check Actions default permissions
+        run: |
+          PERMS=$(gh api repos/$GITHUB_REPOSITORY/actions/permissions/workflow --jq '.default_workflow_permissions' 2>/dev/null)
+          if [ "$PERMS" = "read" ]; then
+            echo "Actions default permissions: read-only"
+          else
+            echo "::warning::Actions permissions are '$PERMS' — recommend setting to 'read' at: https://github.com/$GITHUB_REPOSITORY/settings/actions"
+          fi
+
+      - name: Check delete-branch-on-merge
+        run: |
+          DBM=$(gh api repos/$GITHUB_REPOSITORY --jq '.delete_branch_on_merge' 2>/dev/null)
+          if [ "$DBM" = "true" ]; then
+            echo "Delete branch on merge: enabled"
+          else
+            echo "::warning::Delete-branch-on-merge is disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings"
+          fi
+
+      - name: Check branch protection
+        run: |
+          BRANCH=$(gh api repos/$GITHUB_REPOSITORY --jq '.default_branch' 2>/dev/null)
+          HTTP=$(gh api repos/$GITHUB_REPOSITORY/branches/$BRANCH/protection -i 2>&1 | head -1)
+          if echo "$HTTP" | grep -q "200"; then
+            echo "Branch protection: configured on '$BRANCH'"
+          elif echo "$HTTP" | grep -q "403"; then
+            echo "::notice::Branch protection check requires GitHub Pro for private repositories (free for public repos)"
+          else
+            echo "::warning::No branch protection rules on '$BRANCH' — configure at: https://github.com/$GITHUB_REPOSITORY/settings/branches"
+          fi
+
+      - name: Check SECURITY.md
+        run: |
+          STATUS=$(gh api repos/$GITHUB_REPOSITORY/contents/SECURITY.md -i 2>&1 | head -1)
+          if echo "$STATUS" | grep -q "200"; then
+            echo "SECURITY.md: present"
+          else
+            echo "::warning::SECURITY.md is missing — add one to define your vulnerability disclosure process"
+          fi
