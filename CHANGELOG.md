@@ -6,6 +6,17 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.2.0] - 2026-07-03
+
+### Added
+- `toolbox/` — `mcp-review-toolbox`, a pinned container image bundling static security scanners (gitleaks, trufflehog, osv-scanner, syft, pip-audit, snyk-agent-scan) for reviewing MCP servers and any repo. Base image digest-pinned; Go tools verified against release-published checksums; Python tools exact-pinned to PyPI wheels.
+- `actions/mcp-review-toolbox/` — composite action wrapping the image for CI use.
+- `.github/workflows/build-toolbox.yml` — build, SBOM, provenance, cosign keyless signing, and GHCR push (weekly + on change); reports pinned-tool version drift.
+- `.github/workflows/dogfood-scan.yml` — builds the toolbox from source and scans this repo on push/PR.
+- `scripts/check-tool-updates.sh` — compares pinned tool versions against upstream latest.
+
+---
+
 ## [0.1.1] - 2026-07-03
 
 ### Fixed

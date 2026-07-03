@@ -1,0 +1,73 @@
+name: 'MCP review toolbox'
+description: 'Run pinned static security scanners (gitleaks, trufflehog, osv-scanner, syft SBOM) from the signed mcp-review-toolbox container image.'
+branding:
+  icon: 'shield'
+  color: 'purple'
+
+inputs:
+  image:
+    description: 'Toolbox image reference. Pin by digest (…@sha256:…) for supply-chain safety.'
+    required: false
+    default: 'ghcr.io/garymike/security-workflows/mcp-review-toolbox:latest'
+  path:
+    description: 'Path to scan, relative to the workspace.'
+    required: false
+    default: '.'
+  scanners:
+    description: 'Comma-separated scanners to run: gitleaks, trufflehog, osv-scanner, syft.'
+    required: false
+    default: 'gitleaks,osv-scanner,syft'
+  fail-on-findings:
+    description: 'Fail the step if a scanner reports findings (secrets / vulnerabilities).'
+    required: false
+    default: 'false'
+  sbom-output:
+    description: 'Path to write the syft SBOM (SPDX JSON). Empty string to skip writing a file.'
+    required: false
+    default: 'sbom.spdx.json'
+
+runs:
+  using: composite
+  steps:
+    - name: Run mcp-review-toolbox scanners
+      shell: bash
+      env:
+        TOOLBOX_IMAGE: ${{ inputs.image }}
+        SCAN_PATH: ${{ inputs.path }}
+        SCANNERS: ${{ inputs.scanners }}
+        FAIL_ON_FINDINGS: ${{ inputs.fail-on-findings }}
+        SBOM_OUTPUT: ${{ inputs.sbom-output }}
+      run: |
+        set -uo pipefail
+        docker pull "$TOOLBOX_IMAGE"
+        run() { docker run --rm -v "$PWD:/work:ro" -w /work "$TOOLBOX_IMAGE" "$@"; }
+        rc=0
+        IFS=',' read -ra LIST <<< "$SCANNERS"
+        for s in "${LIST[@]}"; do
+          s="$(echo "$s" | tr -d '[:space:]')"
+          [ -z "$s" ] && continue
+          echo "::group::$s"
+          case "$s" in
+            gitleaks)
+              run gitleaks dir "/work/$SCAN_PATH" --no-banner --redact || rc=$? ;;
+            trufflehog)
+              run trufflehog filesystem "/work/$SCAN_PATH" --only-verified --fail || rc=$? ;;
+            osv-scanner)
+              run osv-scanner scan --recursive "/work/$SCAN_PATH" || rc=$? ;;
+            syft)
+              if [ -n "$SBOM_OUTPUT" ]; then
+                run syft "dir:/work/$SCAN_PATH" -o spdx-json > "$SBOM_OUTPUT" || rc=$?
+                echo "SBOM written to $SBOM_OUTPUT"
+              else
+                run syft "dir:/work/$SCAN_PATH" -o spdx-json > /dev/null || rc=$?
+              fi ;;
+            *)
+              echo "::warning::unknown scanner '$s' — skipping" ;;
+          esac
+          echo "::endgroup::"
+        done
+        if [ "$FAIL_ON_FINDINGS" = "true" ] && [ "$rc" -ne 0 ]; then
+          echo "::error::one or more scanners reported findings (exit $rc)"
+          exit "$rc"
+        fi
+        echo "Scanners completed (fail-on-findings=$FAIL_ON_FINDINGS, aggregate rc=$rc)."
