@@ -1,0 +1,43 @@
+name: Dogfood scan
+
+# Builds the toolbox from source (validating the Dockerfile) and runs its own
+# scanners against this repository. Proves the toolbox works on our own code.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: '0 7 * * 1'   # weekly Monday 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    name: Build toolbox and scan this repo
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Build toolbox image (validates the Dockerfile)
+        run: docker build -t mcp-review-toolbox:ci ./toolbox
+
+      - name: Self-test (tool versions)
+        run: docker run --rm mcp-review-toolbox:ci
+
+      - name: Secret scan (gitleaks) — fails on findings
+        run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci gitleaks dir /src --no-banner --redact
+
+      - name: Dependency scan (osv-scanner)
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci osv-scanner scan --recursive /src
+
+      - name: Generate SBOM (syft)
+        run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci syft dir:/src -o spdx-json > sbom.spdx.json
+
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sbom
+          path: sbom.spdx.json

@@ -1,0 +1,5 @@
+# Normalize line endings to LF so shell scripts, Dockerfiles, and CI YAML
+# always run correctly on Linux runners regardless of the author's OS.
+* text=auto eol=lf
+*.sh        text eol=lf
+Dockerfile  text eol=lf
