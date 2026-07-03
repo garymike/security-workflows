@@ -1,0 +1,57 @@
+name: Security scan (reusable)
+
+on:
+  workflow_call:
+    inputs:
+      gitleaks-fail-on-findings:
+        description: 'Fail the workflow if secrets are detected (false = warn only)'
+        type: boolean
+        default: true
+
+jobs:
+  gitleaks:
+    name: Secret scanning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        continue-on-error: ${{ !inputs.gitleaks-fail-on-findings }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  action-pinning:
+    name: Check action version pinning
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Detect unpinned actions
+        run: |
+          UNPINNED=0
+          while IFS= read -r file; do
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE '^\s+uses:\s+\S+@(v[0-9]|main|master|latest)'; then
+                echo "::warning file=$file::Unpinned action: $(echo "$line" | xargs)"
+                UNPINNED=$((UNPINNED + 1))
+              fi
+            done < "$file"
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+          if [ "$UNPINNED" -gt 0 ]; then
+            echo "::warning::$UNPINNED unpinned action(s) found. Pin to a full commit SHA for supply-chain safety."
+          else
+            echo "All actions are pinned or no workflows found."
+          fi
+
+  security-md:
+    name: Check SECURITY.md
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check SECURITY.md exists
+        run: |
+          if [ -f SECURITY.md ] || [ -f .github/SECURITY.md ]; then
+            echo "SECURITY.md found."
+          else
+            echo "::warning::SECURITY.md is missing. Add one to define your vulnerability disclosure process."
+          fi
