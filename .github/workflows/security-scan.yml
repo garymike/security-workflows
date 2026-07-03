@@ -12,6 +12,9 @@ jobs:
   gitleaks:
     name: Secret scanning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -24,6 +27,8 @@ jobs:
   action-pinning:
     name: Check action version pinning
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Detect unpinned actions
@@ -46,6 +51,8 @@ jobs:
   security-md:
     name: Check SECURITY.md
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - name: Check SECURITY.md exists
