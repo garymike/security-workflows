@@ -1,0 +1,13 @@
+# Declare the intended visibility and purpose of this repo.
+# The github-security-audit skill checks this against actual GitHub settings
+# and flags any mismatch as a finding.
+#
+# visibility: public | private
+# purpose: free-text description of what this repo is for
+
+visibility: public
+purpose: >
+  Reusable GitHub Actions workflows (security-scan.yml, security-audit.yml)
+  called by other garymike repos via .github/workflows/security.yml.
+  Source of truth for gitleaks scanning, action-pinning checks, and the
+  weekly cross-repo security audit.
