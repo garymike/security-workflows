@@ -10,6 +10,8 @@ jobs:
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - uses: actions/checkout@v4
+
       - name: Check Dependabot alerts
         run: |
           STATUS=$(gh api repos/$GITHUB_REPOSITORY/vulnerability-alerts -i 2>&1 | head -1)
@@ -34,7 +36,7 @@ jobs:
           if [ "$PERMS" = "read" ]; then
             echo "Actions default permissions: read-only"
           else
-            echo "::warning::Actions permissions are '$PERMS' — recommend setting to 'read' at: https://github.com/$GITHUB_REPOSITORY/settings/actions"
+            echo "::warning::Actions permissions are '$PERMS' — recommend 'read' at: https://github.com/$GITHUB_REPOSITORY/settings/actions"
           fi
 
       - name: Check delete-branch-on-merge
@@ -53,16 +55,32 @@ jobs:
           if echo "$HTTP" | grep -q "200"; then
             echo "Branch protection: configured on '$BRANCH'"
           elif echo "$HTTP" | grep -q "403"; then
-            echo "::notice::Branch protection check requires GitHub Pro for private repositories (free for public repos)"
+            echo "::notice::Branch protection requires GitHub Pro for private repositories"
           else
-            echo "::warning::No branch protection rules on '$BRANCH' — configure at: https://github.com/$GITHUB_REPOSITORY/settings/branches"
+            echo "::warning::No branch protection on '$BRANCH' — configure at: https://github.com/$GITHUB_REPOSITORY/settings/branches"
           fi
 
       - name: Check SECURITY.md
         run: |
-          STATUS=$(gh api repos/$GITHUB_REPOSITORY/contents/SECURITY.md -i 2>&1 | head -1)
-          if echo "$STATUS" | grep -q "200"; then
+          if [ -f SECURITY.md ] || [ -f .github/SECURITY.md ]; then
             echo "SECURITY.md: present"
           else
             echo "::warning::SECURITY.md is missing — add one to define your vulnerability disclosure process"
+          fi
+
+      - name: Check visibility intent vs actual
+        run: |
+          ACTUAL=$(gh api repos/$GITHUB_REPOSITORY --jq '.visibility' 2>/dev/null)
+          METADATA=".github/repo-metadata.yml"
+          if [ ! -f "$METADATA" ]; then
+            echo "::warning::$METADATA is missing — add it to declare intended visibility (public/private) for audit tracking"
+          else
+            INTENDED=$(grep -E '^visibility:' "$METADATA" | awk '{print $2}' | tr -d '"' | tr -d "'")
+            if [ -z "$INTENDED" ]; then
+              echo "::warning::$METADATA exists but 'visibility:' field is not set"
+            elif [ "$INTENDED" = "$ACTUAL" ]; then
+              echo "Visibility intent: declared '$INTENDED', actual '$ACTUAL' — match"
+            else
+              echo "::error::Visibility mismatch — $METADATA declares '$INTENDED' but repo is '$ACTUAL'. Confirm this is intentional and update $METADATA if so."
+            fi
           fi
