@@ -8,7 +8,7 @@ fully pinned supply chain. Built to be reused across repos, and dogfooded here.
 
 ### `security-scan.yml`
 Runs on every push and PR. Checks:
-- Secret scanning via gitleaks
+- Secret scanning via betterleaks (run from the pinned toolbox image)
 - Unpinned action version detection
 - SECURITY.md presence
 
@@ -54,7 +54,7 @@ Or use [garymike/repo-template](https://github.com/garymike/repo-template) when 
 container image bundling the static security scanners used to review MCP servers
 (betterleaks, trufflehog, osv-scanner, syft, pip-audit, snyk-agent-scan). Run it via
 `docker run` anywhere, or in CI through the composite action at
-[`actions/mcp-review-toolbox`](actions/mcp-review-toolbox). Static analysis only —
+[`actions/toolbox-scan`](actions/toolbox-scan). Static analysis only —
 dynamic analysis (running an untrusted server, proxy interception) stays in the
 caller's isolated environment. See [`toolbox/README.md`](toolbox/README.md).
 

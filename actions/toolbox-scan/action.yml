@@ -1,5 +1,5 @@
-name: 'MCP review toolbox'
-description: 'Run pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft SBOM) from the signed mcp-review-toolbox container image.'
+name: 'Toolbox scan'
+description: 'Run pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft SBOM) from a signed security-workflows toolbox image. Defaults to security-toolbox-base; pass a domain image (e.g. mcp-review-toolbox) for more scanners.'
 branding:
   icon: 'shield'
   color: 'purple'
@@ -8,7 +8,7 @@ inputs:
   image:
     description: 'Toolbox image reference. Pin by digest (…@sha256:…) for supply-chain safety.'
     required: false
-    default: 'ghcr.io/garymike/security-workflows/mcp-review-toolbox:latest'
+    default: 'ghcr.io/garymike/security-workflows/security-toolbox-base:latest'
   path:
     description: 'Path to scan, relative to the workspace.'
     required: false
