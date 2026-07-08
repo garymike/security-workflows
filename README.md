@@ -1,8 +1,8 @@
 # security-workflows
 
-Reusable GitHub Actions security workflows and a signed, pinned scanner **toolbox**
-image — a best-in-class aggregator of upstream security tools behind a hardened,
-fully pinned supply chain. Built to be reused across repos, and dogfooded here.
+Reusable GitHub Actions security workflows over a layered set of signed, pinned scanner
+**toolbox images** — a best-in-class aggregator of upstream security tools behind a
+hardened, fully pinned supply chain. Built to be reused across repos, and dogfooded here.
 
 ## Workflows
 
@@ -77,21 +77,23 @@ Or use [garymike/repo-template](https://github.com/garymike/repo-template) when 
 
 ## Container toolbox
 
-[`toolbox/`](toolbox/) builds **`mcp-review-toolbox`** — a pinned, cosign-signed
-container image bundling the static security scanners used to review MCP servers
-(betterleaks, trufflehog, osv-scanner, syft, pip-audit, snyk-agent-scan). Run it via
-`docker run` anywhere, or in CI through the composite action at
-[`actions/toolbox-scan`](actions/toolbox-scan). Static analysis only —
-dynamic analysis (running an untrusted server, proxy interception) stays in the
-caller's isolated environment. See [`toolbox/README.md`](toolbox/README.md).
+[`toolbox/`](toolbox/) builds a **layered set of signed images** — a shared
+`security-toolbox-base` (betterleaks, trufflehog, osv-scanner, syft) plus the domain images
+`mcp-review-toolbox`, `gha-toolbox`, and `skill-audit-toolbox` that build `FROM` it by
+digest. Run them via `docker run` anywhere, in CI through the composite action at
+[`actions/toolbox-scan`](actions/toolbox-scan), or via the reusable workflows above. Static
+analysis only — dynamic analysis (running an untrusted server or skill, proxy interception)
+stays in the caller's isolated environment. See [`toolbox/README.md`](toolbox/README.md).
 
-- `build-toolbox.yml` — builds, SBOMs, cosign-signs, and pushes the image to GHCR
-  (weekly + on change).
-- `dogfood-scan.yml` — builds the image from source and scans this repo.
+- `build-toolbox.yml` — builds each image, attaches an SBOM + provenance, **Trivy-gates** on
+  fixable CRITICAL CVEs, cosign-signs, and pushes to GHCR (weekly + on change).
+- `dogfood-scan.yml` — builds the whole stack from source and scans this repo.
 
 ## Supply-chain hardening
 
-Every third-party action in these workflows is pinned to a full commit SHA (the
-trailing `# vX` comment records the human-readable version). Pinning the
-reusable-workflow *call* itself — to a release tag or commit SHA rather than a
-moving branch — is the recommended next step once tagged releases are published.
+Every third-party action in these workflows is pinned to a full commit SHA (the trailing
+`# vX` comment records the human-readable version), and every published toolbox image is
+SBOM'd, provenance-attested, Trivy-gated, and cosign-signed. Tagged
+[releases](https://github.com/garymike/security-workflows/releases) are published, so pin
+the reusable-workflow *call* to a release tag — or a commit SHA for maximum safety (this
+repo's own check treats `@vN` as unpinned). See [ADR-0008](docs/adr/0008-versioning.md).

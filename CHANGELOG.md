@@ -6,6 +6,13 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- Documentation currency pass: `toolbox/README.md` and the root README now describe all four layered images (not just `mcp-review-toolbox`), the Trivy publish gate, and the published release; `.github/repo-metadata.yml` purpose updated to the platform scope.
+
+---
+
 ## [0.3.0] - 2026-07-08
 
 ### Added
