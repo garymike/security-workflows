@@ -82,6 +82,16 @@ jobs:
         continue-on-error: true
         run: docker run --rm -v "$PWD:/src:ro" -w /src sast-toolbox:ci semgrep scan --config p/default /src --metrics=off
 
+      - name: Build iac-toolbox on the local base (validates toolbox/iac/Dockerfile)
+        run: docker build --build-arg BASE=security-toolbox-base:ci -t iac-toolbox:ci ./toolbox/iac
+
+      - name: iac-toolbox self-test (tool version)
+        run: docker run --rm iac-toolbox:ci
+
+      - name: IaC scan (Checkov) on this repo — informational
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src iac-toolbox:ci checkov -d /src --compact --quiet
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom

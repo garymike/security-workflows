@@ -32,6 +32,9 @@ Reusable (`workflow_call`). Static application security testing with the pinned 
 ### `codeql.yml`
 Reusable (`workflow_call`). Deep whole-program SAST via **CodeQL** — the complementary engine for public repos. Most public repos are better served by GitHub's code-scanning **default setup**; use this for centralized/advanced setup across repos.
 
+### `iac-security.yml`
+Reusable (`workflow_call`). Infrastructure-as-Code / misconfiguration scanning with the pinned `iac-toolbox` (**Checkov**) — Terraform, Dockerfiles, K8s, Helm, CloudFormation; emits SARIF to code scanning.
+
 ## Usage
 
 Add a `.github/workflows/security.yml` to each repo, pinned to a release tag (or a

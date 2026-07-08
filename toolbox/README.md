@@ -20,7 +20,8 @@ security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (g
   ├── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
   ├── gha-toolbox         ← + zizmor · actionlint (+ shellcheck)
   ├── skill-audit-toolbox ← + SkillSpector · skill-testfile-gate
-  └── sast-toolbox        ← + Semgrep
+  ├── sast-toolbox        ← + Semgrep
+  └── iac-toolbox         ← + Checkov
 ```
 
 ## Bundled tools
@@ -38,6 +39,7 @@ security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (g
 | **skill-audit-toolbox** | SkillSpector | agent-skill scanner (prompt injection, tool poisoning, exfiltration) |
 | | skill-testfile-gate | first-party gate for the developer-execution surface no scanner covers |
 | **sast-toolbox** | Semgrep | static application security testing (general code + LLM rulesets via `--config`) |
+| **iac-toolbox** | Checkov | Infrastructure-as-Code misconfig (Terraform, Dockerfiles, K8s, Helm, CloudFormation) |
 
 Exact versions (and the SkillSpector commit pin) are in [`tools.lock`](tools.lock) and the
 Dockerfile ARGs.
