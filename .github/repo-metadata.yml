@@ -9,5 +9,5 @@ visibility: public
 purpose: >
   Reusable GitHub Actions workflows (security-scan.yml, security-audit.yml)
   called by other garymike repos via .github/workflows/security.yml.
-  Source of truth for gitleaks scanning, action-pinning checks, and the
+  Source of truth for secret scanning, action-pinning checks, and the
   weekly cross-repo security audit.

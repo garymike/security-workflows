@@ -30,8 +30,8 @@ jobs:
       - name: Self-test (tool versions)
         run: docker run --rm mcp-review-toolbox:ci
 
-      - name: Secret scan (gitleaks) — fails on findings
-        run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci gitleaks dir /src --no-banner --redact
+      - name: Secret scan (betterleaks) — fails on findings
+        run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci betterleaks dir /src --no-banner --redact
 
       - name: Dependency scan (osv-scanner)
         continue-on-error: true

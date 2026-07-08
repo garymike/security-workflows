@@ -14,7 +14,7 @@
 
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS downloader
 
-ARG GITLEAKS_VERSION=8.30.1
+ARG BETTERLEAKS_VERSION=1.6.1
 ARG TRUFFLEHOG_VERSION=3.95.8
 ARG OSV_SCANNER_VERSION=2.4.0
 ARG SYFT_VERSION=1.46.0
@@ -27,15 +27,15 @@ RUN set -eux; \
 
 WORKDIR /tmp/dl
 
-# gitleaks — secret scanning
+# betterleaks — secret scanning (drop-in gitleaks successor by gitleaks' author)
 RUN set -eux; \
-    base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"; \
-    asset="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"; \
+    base="https://github.com/betterleaks/betterleaks/releases/download/v${BETTERLEAKS_VERSION}"; \
+    asset="betterleaks_${BETTERLEAKS_VERSION}_linux_x64.tar.gz"; \
     curl -fsSL -o "${asset}" "${base}/${asset}"; \
-    curl -fsSL -o checksums.txt "${base}/gitleaks_${GITLEAKS_VERSION}_checksums.txt"; \
+    curl -fsSL -o checksums.txt "${base}/checksums.txt"; \
     grep "${asset}$" checksums.txt | sha256sum -c -; \
-    tar -xzf "${asset}" gitleaks; \
-    install -m 0755 gitleaks /out/gitleaks; \
+    tar -xzf "${asset}" betterleaks; \
+    install -m 0755 betterleaks /out/betterleaks; \
     rm -f "${asset}" checksums.txt
 
 # trufflehog — verified-secret scanning
@@ -75,12 +75,12 @@ RUN set -eux; \
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
 
 LABEL org.opencontainers.image.title="security-toolbox-base" \
-      org.opencontainers.image.description="Generic pinned static security scanners (gitleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \
+      org.opencontainers.image.description="Generic pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \
       org.opencontainers.image.source="https://github.com/garymike/security-workflows" \
       org.opencontainers.image.licenses="MIT"
 
 # Runtime deps: ca-certificates for HTTPS (osv-scanner / trufflehog online
-# checks); git so gitleaks/trufflehog can optionally scan commit history.
+# checks); git so betterleaks/trufflehog can optionally scan commit history.
 RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends git ca-certificates; \
@@ -90,10 +90,10 @@ RUN set -eux; \
     groupadd --system toolbox; \
     useradd --system --gid toolbox --create-home --home-dir /home/toolbox toolbox
 
-COPY --from=downloader /out/gitleaks /out/trufflehog /out/osv-scanner /out/syft /usr/local/bin/
+COPY --from=downloader /out/betterleaks /out/trufflehog /out/osv-scanner /out/syft /usr/local/bin/
 
 USER toolbox
 WORKDIR /src
 
 # `docker run <image>` prints tool versions as a self-test (never fails).
-CMD ["sh", "-lc", "set +e; echo 'security-toolbox-base — pinned generic scanners:'; gitleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; true"]
+CMD ["sh", "-lc", "set +e; echo 'security-toolbox-base — pinned generic scanners:'; betterleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; true"]

@@ -2,7 +2,7 @@
 # check=skip=UndefinedVar
 #
 # mcp-review-toolbox — MCP-server review scanners layered on security-toolbox-base.
-#   = base (gitleaks, trufflehog, osv-scanner, syft) + pip-audit + snyk-agent-scan.
+#   = base (betterleaks, trufflehog, osv-scanner, syft) + pip-audit + snyk-agent-scan.
 # STATIC ANALYSIS ONLY. Dynamic analysis — actually running an untrusted MCP server,
 # proxy/traffic interception — stays in the caller's isolated environment.
 #
@@ -33,4 +33,4 @@ RUN set -eux; \
 USER toolbox
 
 # `docker run <image>` prints tool versions as a self-test (never fails).
-CMD ["sh", "-lc", "set +e; echo 'mcp-review-toolbox — pinned scanners:'; gitleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; pip-audit --version; snyk-agent-scan --version 2>&1 | head -1; true"]
+CMD ["sh", "-lc", "set +e; echo 'mcp-review-toolbox — pinned scanners:'; betterleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; pip-audit --version; snyk-agent-scan --version 2>&1 | head -1; true"]
