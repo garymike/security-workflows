@@ -6,7 +6,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [0.3.0] - 2026-07-08
 
 ### Added
 - `.github/dependabot.yml` — weekly update checks for GitHub Actions and the toolbox base image.
@@ -15,6 +15,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `gha-toolbox` image (base + **zizmor** + **actionlint** + shellcheck) and the reusable **`gha-security.yml`** workflow — audits GitHub Actions workflows for expression/template injection, excessive permissions, unpinned actions, and shell issues. Built via the domain matrix and dogfooded in `dogfood-scan.yml`.
 - `skill-audit-toolbox` image (base + **SkillSpector**, pinned by commit + a first-party **test-file gate**) and the reusable **`skill-audit.yml`** workflow — reviews agent skills across the agent-execution surface (SkillSpector) and the developer-execution / test-file surface no scanner covers. Adds **`docs/threat-model.md`** documenting the coverage map, citations, and residual gaps.
 - **Trivy** image-CVE publish gate in `build-toolbox.yml` — each image is built locally and scanned for fixable CRITICAL CVEs *before* it is pushed and signed; publishing is blocked on findings. An informational Trivy scan is also added to `dogfood-scan.yml`.
+- Documentation: `docs/adr/` (architecture decision records 0001–0009), `docs/architecture.md` (three-plane overview + layer graph), and `docs/tool-evaluations.md` (the tool-selection ledger).
 
 ### Fixed
 - README "Hardening note" corrected: third-party actions are already pinned to commit SHAs (it previously described version tags).
@@ -27,6 +28,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Secret scanning swapped from **gitleaks** to **betterleaks** (its drop-in successor by the original author) across the base image, dogfood scan, composite action, and `tools.lock` / `check-tool-updates.sh`; `gitleaks` stays an accepted alias in the composite action.
 - `security-scan.yml` (reusable) now runs secret scanning with **betterleaks from the pinned `security-toolbox-base` image** instead of `gitleaks-action` — one pinned source of truth. Input renamed `gitleaks-fail-on-findings` → `fail-on-findings`; the secrets job now needs `packages: read` to pull the image.
 - Composite action `actions/mcp-review-toolbox` → **`actions/toolbox-scan`** (generalized; default image is now `security-toolbox-base`).
+- Adopted SemVer release tagging (this is `0.3.0`). README usage now pins to a release tag and grants `packages: read`; SHA-pinning documented for maximum supply-chain safety.
 
 ---
 
