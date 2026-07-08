@@ -35,3 +35,5 @@ check osv-scanner     "$(pinned osv-scanner)"     "$(gh_latest google/osv-scanne
 check syft            "$(pinned syft)"            "$(gh_latest anchore/syft)"
 check pip-audit       "$(pinned pip-audit)"       "$(pypi_latest pip-audit)"
 check snyk-agent-scan "$(pinned snyk-agent-scan)" "$(pypi_latest snyk-agent-scan)"
+check zizmor          "$(pinned zizmor)"          "$(pypi_latest zizmor)"
+check actionlint      "$(pinned actionlint)"      "$(gh_latest rhysd/actionlint)"

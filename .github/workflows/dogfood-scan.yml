@@ -40,6 +40,20 @@ jobs:
       - name: Generate SBOM (syft)
         run: docker run --rm -v "$PWD:/src:ro" -w /src mcp-review-toolbox:ci syft dir:/src -o spdx-json > sbom.spdx.json
 
+      - name: Build gha-toolbox on the local base (validates toolbox/gha/Dockerfile)
+        run: docker build --build-arg BASE=security-toolbox-base:ci -t gha-toolbox:ci ./toolbox/gha
+
+      - name: gha-toolbox self-test (tool versions)
+        run: docker run --rm gha-toolbox:ci
+
+      - name: GHA lint (actionlint) — informational
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src gha-toolbox:ci actionlint -color
+
+      - name: GHA security audit (zizmor, offline) — informational
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src gha-toolbox:ci zizmor --offline .
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom

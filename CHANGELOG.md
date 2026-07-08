@@ -12,10 +12,12 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `.github/dependabot.yml` — weekly update checks for GitHub Actions and the toolbox base image.
 - `security-toolbox-base` — a separately-published, cosign-signed base image bundling the generic static scanners (gitleaks, trufflehog, osv-scanner, syft); the shared spine for every domain toolbox image (`toolbox/base/Dockerfile`).
 - `self-scan.yml` — dogfoods the reusable `security-scan.yml` against this repo on every push/PR, so changes to the reusable workflow are validated here.
+- `gha-toolbox` image (base + **zizmor** + **actionlint** + shellcheck) and the reusable **`gha-security.yml`** workflow — audits GitHub Actions workflows for expression/template injection, excessive permissions, unpinned actions, and shell issues. Built via the domain matrix and dogfooded in `dogfood-scan.yml`.
 
 ### Fixed
 - README "Hardening note" corrected: third-party actions are already pinned to commit SHAs (it previously described version tags).
 - CHANGELOG 0.1.1 entry corrected: dropped a reference to `github/codeql-action`, which the repo does not use.
+- Dogfood-driven workflow hardening (findings from the new gha-toolbox): quoted shell variables in `security-audit.yml` (shellcheck SC2086), moved `github.actor` into `env` in `security-scan.yml` (zizmor template-injection), and added `persist-credentials: false` to checkouts.
 
 ### Changed
 - README lede repositioned from "workflows for personal repos" to the aggregator/platform framing.
