@@ -6,6 +6,20 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Added
+- `.github/dependabot.yml` — weekly update checks for GitHub Actions and the toolbox base image.
+
+### Fixed
+- README "Hardening note" corrected: third-party actions are already pinned to commit SHAs (it previously described version tags).
+- CHANGELOG 0.1.1 entry corrected: dropped a reference to `github/codeql-action`, which the repo does not use.
+
+### Changed
+- README lede repositioned from "workflows for personal repos" to the aggregator/platform framing.
+
+---
+
 ## [0.2.0] - 2026-07-03
 
 ### Added
@@ -23,7 +37,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `security-scan.yml`: grant `pull-requests: read` permission so `gitleaks-action` can list PR commits on pull_request events.
 
 ### Changed
-- Pinned all third-party actions to commit SHAs for supply-chain safety (`actions/checkout`, `gitleaks/gitleaks-action`, `github/codeql-action`).
+- Pinned all third-party actions to commit SHAs for supply-chain safety (`actions/checkout`, `gitleaks/gitleaks-action`).
 
 ### Added
 - `SECURITY.md` — private vulnerability reporting instructions.
