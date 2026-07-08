@@ -6,7 +6,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [0.4.0] - 2026-07-08
 
 ### Added
 - `CONTRIBUTING.md` — local image builds, the signed-commit/PR flow, and the release process.
