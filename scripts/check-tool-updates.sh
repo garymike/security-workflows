@@ -37,6 +37,7 @@ check pip-audit       "$(pinned pip-audit)"       "$(pypi_latest pip-audit)"
 check snyk-agent-scan "$(pinned snyk-agent-scan)" "$(pypi_latest snyk-agent-scan)"
 check zizmor          "$(pinned zizmor)"          "$(pypi_latest zizmor)"
 check actionlint      "$(pinned actionlint)"      "$(gh_latest rhysd/actionlint)"
+check semgrep         "$(pinned semgrep)"         "$(pypi_latest semgrep)"
 
 # SkillSpector is pinned by commit (no releases upstream) — compare against HEAD.
 ss_pinned="$(pinned skillspector)"

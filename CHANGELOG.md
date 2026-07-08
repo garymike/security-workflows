@@ -10,6 +10,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ### Added
 - `CONTRIBUTING.md` — local image builds, the signed-commit/PR flow, and the release process.
+- `sast-toolbox` (base + **Semgrep OSS**) + reusable `sast.yml` (SARIF → code scanning) and reusable `codeql.yml` (CodeQL, the deep engine for public repos) — defense-in-depth SAST that closes issue #2's SAST and #3's Trusys (Semgrep carries the LLM rulesets). CodeQL is also recommended via GitHub's code-scanning default setup.
 
 ### Fixed
 - Documentation currency pass: `toolbox/README.md` and the root README now describe all four layered images (not just `mcp-review-toolbox`), the Trivy publish gate, and the published release; `.github/repo-metadata.yml` purpose updated to the platform scope.

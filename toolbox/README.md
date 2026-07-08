@@ -19,7 +19,8 @@ A shared, separately-published base carries the generic scanners; each domain im
 security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (generic spine)
   ├── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
   ├── gha-toolbox         ← + zizmor · actionlint (+ shellcheck)
-  └── skill-audit-toolbox ← + SkillSpector · skill-testfile-gate
+  ├── skill-audit-toolbox ← + SkillSpector · skill-testfile-gate
+  └── sast-toolbox        ← + Semgrep
 ```
 
 ## Bundled tools
@@ -36,6 +37,7 @@ security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (g
 | | actionlint (+ shellcheck) | workflow syntax + embedded shell |
 | **skill-audit-toolbox** | SkillSpector | agent-skill scanner (prompt injection, tool poisoning, exfiltration) |
 | | skill-testfile-gate | first-party gate for the developer-execution surface no scanner covers |
+| **sast-toolbox** | Semgrep | static application security testing (general code + LLM rulesets via `--config`) |
 
 Exact versions (and the SkillSpector commit pin) are in [`tools.lock`](tools.lock) and the
 Dockerfile ARGs.
