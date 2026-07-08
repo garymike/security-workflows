@@ -30,7 +30,8 @@ Exact versions are in [`tools.lock`](tools.lock) and the Dockerfile ARGs.
 ```
 security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (generic spine)
   ├── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
-  └── gha-toolbox         ← + zizmor · actionlint (+ shellcheck)
+  ├── gha-toolbox         ← + zizmor · actionlint (+ shellcheck)
+  └── skill-audit-toolbox ← + SkillSpector · test-file gate
 ```
 
 The base is its own signed, SBOM'd image, pinned by **digest** into each domain image

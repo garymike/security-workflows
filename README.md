@@ -23,6 +23,9 @@ Runs on a schedule (weekly recommended). Checks:
 ### `gha-security.yml`
 Reusable (`workflow_call`). Audits the caller's GitHub Actions workflows with the pinned `gha-toolbox` image — **zizmor** (expression/template injection, excessive permissions, unpinned actions) and **actionlint** (syntax + embedded shell via shellcheck).
 
+### `skill-audit.yml`
+Reusable (`workflow_call`). Reviews agent skills with the pinned `skill-audit-toolbox` — **SkillSpector** (agent-execution surface: prompt injection, tool poisoning, exfiltration) plus a first-party **test-file gate** for the developer-execution surface no published skill scanner covers. See [`docs/threat-model.md`](docs/threat-model.md).
+
 ## Usage
 
 Add a `.github/workflows/security.yml` to each repo:

@@ -37,3 +37,14 @@ check pip-audit       "$(pinned pip-audit)"       "$(pypi_latest pip-audit)"
 check snyk-agent-scan "$(pinned snyk-agent-scan)" "$(pypi_latest snyk-agent-scan)"
 check zizmor          "$(pinned zizmor)"          "$(pypi_latest zizmor)"
 check actionlint      "$(pinned actionlint)"      "$(gh_latest rhysd/actionlint)"
+
+# SkillSpector is pinned by commit (no releases upstream) — compare against HEAD.
+ss_pinned="$(pinned skillspector)"
+ss_head="$(gh api repos/NVIDIA/SkillSpector/commits/HEAD --jq '.sha' 2>/dev/null)"
+if [ -z "$ss_head" ]; then
+  echo "  skillspector: could not resolve upstream HEAD (skipped)"
+elif [ "${ss_head:0:12}" != "${ss_pinned:0:12}" ]; then
+  echo "::warning::skillspector pinned at ${ss_pinned:0:12} but upstream HEAD is ${ss_head:0:12} — bump SKILLSPECTOR_REF and tools.lock."
+else
+  echo "  skillspector: up to date (${ss_pinned:0:12})"
+fi

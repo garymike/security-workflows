@@ -87,7 +87,8 @@ jobs:
             context: ./toolbox/mcp-review
           - image: gha-toolbox
             context: ./toolbox/gha
-          # Phase 4 adds skill-audit-toolbox here — same signed base by digest.
+          - image: skill-audit-toolbox
+            context: ./toolbox/skill-audit
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
