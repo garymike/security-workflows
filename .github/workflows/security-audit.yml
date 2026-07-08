@@ -5,7 +5,6 @@ on:
 
 permissions:
   contents: read
-  administration: read   # read repo settings: Actions permissions, branch protection
 
 jobs:
   audit:

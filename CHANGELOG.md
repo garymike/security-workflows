@@ -6,6 +6,13 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.1] - 2026-07-08
+
+### Fixed
+- `security-audit.yml`: removed an invalid `administration: read` entry from the workflow `permissions:` block — `administration` is not a valid `GITHUB_TOKEN` permission scope, so it made **every caller** of the reusable workflows fail at parse time ("workflow file issue"), even for the skipped audit job. Callers should pin to **v0.4.1**. (Caught by validating on a real consumer repo; making the dogfood actionlint step blocking is a follow-up to prevent recurrence.)
+
+---
+
 ## [0.4.0] - 2026-07-08
 
 ### Added
