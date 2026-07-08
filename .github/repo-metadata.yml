@@ -7,7 +7,8 @@
 
 visibility: public
 purpose: >
-  Reusable GitHub Actions workflows (security-scan.yml, security-audit.yml)
-  called by other garymike repos via .github/workflows/security.yml.
-  Source of truth for secret scanning, action-pinning checks, and the
-  weekly cross-repo security audit.
+  A security-engineering platform: reusable GitHub Actions workflows
+  (security-scan, security-audit, gha-security, skill-audit) over a layered set of
+  signed, pinned scanner toolbox images (security-toolbox-base + mcp-review, gha,
+  skill-audit). A best-in-class aggregator of upstream security tools; source of
+  truth for secret / dependency / GitHub-Actions / skill scanning across garymike repos.
