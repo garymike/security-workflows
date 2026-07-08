@@ -1,20 +1,23 @@
-# tools.lock — pinned tool versions for mcp-review-toolbox.
-# Keep in sync with the ARG values in toolbox/Dockerfile.
+# tools.lock — pinned tool versions across the mcp-review-toolbox image stack.
+# Keep in sync with the ARG values in the toolbox Dockerfiles.
 # Run scripts/check-tool-updates.sh to compare against the latest available.
 #
 # name             version   source                              purpose
+#
+# --- security-toolbox-base (generic spine, shared by every domain image) ---
 gitleaks           8.30.1    github:gitleaks/gitleaks            # secret scanning
 trufflehog         3.95.8    github:trufflesecurity/trufflehog   # verified-secret scanning
 osv-scanner        2.4.0     github:google/osv-scanner           # dependency CVEs
 syft               1.46.0    github:anchore/syft                 # SBOM generation
+#
+# --- mcp-review-toolbox (= security-toolbox-base + these) ---
 pip-audit          2.10.1    pypi:pip-audit                      # Python dependency audit
 snyk-agent-scan    0.5.12    pypi:snyk-agent-scan                # MCP tool-surface scan (renamed from mcp-scan)
 #
-# base image: python:3.12-slim-bookworm
+# base OS image (both stages): python:3.12-slim-bookworm
 #   digest: sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
 #
 # Verification model (v0): Go tools are verified against their release-published
 # SHA-256 checksums at build time; Python tools are exact-pinned PyPI wheels.
-# Hardening TODO: record out-of-band binary SHA-256 pins here and have the
-# Dockerfile verify against this file, removing trust in the release's own
-# checksums file.
+# Hardening TODO: record out-of-band binary SHA-256 pins here and have the base
+# Dockerfile verify against this file, removing trust in the release's own checksums.
