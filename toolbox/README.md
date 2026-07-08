@@ -21,7 +21,25 @@ own isolated sandbox and is never centralized.
 | pip-audit | Python dependency audit |
 | snyk-agent-scan | MCP tool-surface / agent supply-chain scan (renamed from Invariant Labs `mcp-scan`) |
 
-Exact versions are in [`tools.lock`](tools.lock) and the `Dockerfile` ARGs.
+Exact versions are in [`tools.lock`](tools.lock) and the Dockerfile ARGs.
+
+## Image layers
+
+`mcp-review-toolbox` builds on a shared, separately-published base:
+
+```
+security-toolbox-base    ← gitleaks · trufflehog · osv-scanner · syft (generic spine)
+  └── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
+```
+
+The base is its own signed, SBOM'd image, pinned by **digest** into each domain image
+at build time (`build-toolbox.yml`). Sibling domain images (gha, skill-audit) will
+layer on the same base. Build the stack locally with:
+
+```bash
+docker build -t security-toolbox-base:ci ./toolbox/base
+docker build --build-arg BASE=security-toolbox-base:ci -t mcp-review-toolbox:ci ./toolbox/mcp-review
+```
 
 ## Use it
 
@@ -54,13 +72,14 @@ Or in a workflow, via the composite Action:
 
 ## Supply chain
 
-- **Base image** pinned by digest.
+- **Base OS image** pinned by digest; the `security-toolbox-base` layer is itself a
+  signed, SBOM'd image that each domain image pins by digest.
 - **Go tools** pinned by version, verified against their release-published
   SHA-256 checksums at build time.
 - **Python tools** pinned to exact PyPI versions (wheels).
-- **Published image** is built in CI with an attached **SBOM** and
-  **provenance** (`mode=max`) and **cosign-signed** (keyless, Sigstore/OIDC).
-  Verify before use:
+- **Published images** (base and domain) are built in CI with an attached **SBOM**
+  and **provenance** (`mode=max`) and **cosign-signed** (keyless, Sigstore/OIDC).
+  Verify before use (same command for `security-toolbox-base`):
 
   ```bash
   cosign verify ghcr.io/garymike/security-workflows/mcp-review-toolbox:latest \

@@ -1,11 +1,10 @@
-name: Build toolbox image
+name: Build toolbox images
 
 on:
   push:
     branches: [main]
     paths:
       - 'toolbox/**'
-      - 'actions/mcp-review-toolbox/**'
       - '.github/workflows/build-toolbox.yml'
   schedule:
     - cron: '0 6 * * 1'   # weekly Monday 06:00 UTC — rebuild to pick up base-image patches
@@ -15,13 +14,16 @@ permissions:
   contents: read
 
 jobs:
-  build:
-    name: Build, sign, and push
+  base:
+    name: Build, sign, push — security-toolbox-base
     runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write   # push image to GHCR
       id-token: write   # cosign keyless signing + build provenance
+    outputs:
+      image: ${{ steps.prep.outputs.image }}
+      digest: ${{ steps.build.outputs.digest }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
@@ -41,7 +43,7 @@ jobs:
       - name: Compute image tags
         id: prep
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/mcp-review-toolbox"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/security-toolbox-base"
           {
             echo "image=$IMAGE"
             echo "tags<<EOF"
@@ -55,8 +57,68 @@ jobs:
         id: build
         uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
         with:
-          context: ./toolbox
+          context: ./toolbox/base
           push: true
+          tags: ${{ steps.prep.outputs.tags }}
+          sbom: true
+          provenance: mode=max
+
+      - uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+
+      - name: Sign image (keyless, Sigstore/OIDC)
+        env:
+          IMAGE: ${{ steps.prep.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+
+  domain:
+    name: Build, sign, push — ${{ matrix.image }}
+    needs: base
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+      id-token: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - image: mcp-review-toolbox
+            context: ./toolbox/mcp-review
+          # Phase 3/4 add siblings here (gha-toolbox, skill-audit-toolbox) — each
+          # builds FROM the same signed base by digest.
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4.2.0
+
+      - uses: docker/login-action@c99871dec2022cc055c062a10cc1a1310835ceb4 # v4.3.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image tags
+        id: prep
+        run: |
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.image }}"
+          {
+            echo "image=$IMAGE"
+            echo "tags<<EOF"
+            echo "$IMAGE:latest"
+            echo "$IMAGE:sha-${GITHUB_SHA::12}"
+            echo "$IMAGE:$(date -u +%Y%m%d)"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Build and push (pinned to the signed base by digest)
+        id: build
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7.3.0
+        with:
+          context: ${{ matrix.context }}
+          push: true
+          build-args: |
+            BASE=${{ needs.base.outputs.image }}@${{ needs.base.outputs.digest }}
           tags: ${{ steps.prep.outputs.tags }}
           sbom: true
           provenance: mode=max

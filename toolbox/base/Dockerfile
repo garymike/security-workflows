@@ -1,16 +1,15 @@
 # syntax=docker/dockerfile:1
 # check=skip=UndefinedVar
 #
-# mcp-review-toolbox — pinned static security scanners for reviewing MCP servers
-# (and any repo). STATIC ANALYSIS ONLY. Dynamic analysis — actually running an
-# untrusted MCP server, proxy/traffic interception — stays in the caller's
-# isolated environment and is never centralized here.
+# security-toolbox-base — the generic, pinned static-scanner spine shared by every
+# domain toolbox image (mcp-review, and later gha, skill-audit). STATIC ANALYSIS
+# ONLY. Dynamic analysis — running an untrusted target, proxy/traffic interception —
+# stays in the caller's isolated environment and is never centralized here.
 #
 # Supply chain:
-#   - Base image pinned by digest.
+#   - Base OS image pinned by digest.
 #   - Go tools pinned by version, verified against their release-published
 #     SHA-256 checksums at build time.
-#   - Python tools pinned to exact PyPI versions (wheels).
 # Keep the ARG versions below in sync with toolbox/tools.lock.
 
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS downloader
@@ -75,13 +74,8 @@ RUN set -eux; \
 # --------------------------------------------------------------------------- #
 FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
 
-# snyk-agent-scan is the renamed successor to invariantlabs-ai/mcp-scan (the
-# PyPI `mcp-scan` package is now a redirect stub). Same version line (0.5.12).
-ARG PIP_AUDIT_VERSION=2.10.1
-ARG SNYK_AGENT_SCAN_VERSION=0.5.12
-
-LABEL org.opencontainers.image.title="mcp-review-toolbox" \
-      org.opencontainers.image.description="Pinned static security scanners for MCP server review (gitleaks, trufflehog, osv-scanner, syft, pip-audit, snyk-agent-scan)." \
+LABEL org.opencontainers.image.title="security-toolbox-base" \
+      org.opencontainers.image.description="Generic pinned static security scanners (gitleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \
       org.opencontainers.image.source="https://github.com/garymike/security-workflows" \
       org.opencontainers.image.licenses="MIT"
 
@@ -96,16 +90,10 @@ RUN set -eux; \
     groupadd --system toolbox; \
     useradd --system --gid toolbox --create-home --home-dir /home/toolbox toolbox
 
-# Python static-analysis tools, pinned exact versions.
-RUN set -eux; \
-    pip install --no-cache-dir \
-      "pip-audit==${PIP_AUDIT_VERSION}" \
-      "snyk-agent-scan==${SNYK_AGENT_SCAN_VERSION}"
-
 COPY --from=downloader /out/gitleaks /out/trufflehog /out/osv-scanner /out/syft /usr/local/bin/
 
 USER toolbox
 WORKDIR /src
 
 # `docker run <image>` prints tool versions as a self-test (never fails).
-CMD ["sh", "-lc", "set +e; echo 'mcp-review-toolbox — pinned scanners:'; gitleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; pip-audit --version; snyk-agent-scan --version 2>&1 | head -1; true"]
+CMD ["sh", "-lc", "set +e; echo 'security-toolbox-base — pinned generic scanners:'; gitleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; true"]

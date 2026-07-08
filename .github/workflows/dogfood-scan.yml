@@ -1,7 +1,7 @@
 name: Dogfood scan
 
-# Builds the toolbox from source (validating the Dockerfile) and runs its own
-# scanners against this repository. Proves the toolbox works on our own code.
+# Builds the toolbox from source (validating the layered Dockerfiles) and runs its
+# own scanners against this repository. Proves the toolbox works on our own code.
 
 on:
   push:
@@ -21,8 +21,11 @@ jobs:
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
-      - name: Build toolbox image (validates the Dockerfile)
-        run: docker build -t mcp-review-toolbox:ci ./toolbox
+      - name: Build base image (validates toolbox/base/Dockerfile)
+        run: docker build -t security-toolbox-base:ci ./toolbox/base
+
+      - name: Build mcp-review on the local base (validates the layering)
+        run: docker build --build-arg BASE=security-toolbox-base:ci -t mcp-review-toolbox:ci ./toolbox/mcp-review
 
       - name: Self-test (tool versions)
         run: docker run --rm mcp-review-toolbox:ci
