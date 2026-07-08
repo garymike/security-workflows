@@ -104,6 +104,8 @@ jobs:
             context: ./toolbox/gha
           - image: skill-audit-toolbox
             context: ./toolbox/skill-audit
+          - image: sast-toolbox
+            context: ./toolbox/sast
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 

@@ -72,6 +72,16 @@ jobs:
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
+      - name: Build sast-toolbox on the local base (validates toolbox/sast/Dockerfile)
+        run: docker build --build-arg BASE=security-toolbox-base:ci -t sast-toolbox:ci ./toolbox/sast
+
+      - name: sast-toolbox self-test (tool version)
+        run: docker run --rm sast-toolbox:ci
+
+      - name: SAST (Semgrep) on this repo — informational
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src sast-toolbox:ci semgrep scan --config p/default /src --metrics=off
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom

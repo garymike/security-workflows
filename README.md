@@ -26,6 +26,12 @@ Reusable (`workflow_call`). Audits the caller's GitHub Actions workflows with th
 ### `skill-audit.yml`
 Reusable (`workflow_call`). Reviews agent skills with the pinned `skill-audit-toolbox` — **SkillSpector** (agent-execution surface: prompt injection, tool poisoning, exfiltration) plus a first-party **test-file gate** for the developer-execution surface no published skill scanner covers. See [`docs/threat-model.md`](docs/threat-model.md).
 
+### `sast.yml`
+Reusable (`workflow_call`). Static application security testing with the pinned `sast-toolbox` (**Semgrep** OSS); emits SARIF to code scanning. Universal/portable — public *and* private repos.
+
+### `codeql.yml`
+Reusable (`workflow_call`). Deep whole-program SAST via **CodeQL** — the complementary engine for public repos. Most public repos are better served by GitHub's code-scanning **default setup**; use this for centralized/advanced setup across repos.
+
 ## Usage
 
 Add a `.github/workflows/security.yml` to each repo, pinned to a release tag (or a

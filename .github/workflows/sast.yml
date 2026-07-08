@@ -1,0 +1,76 @@
+name: SAST (reusable)
+
+# Static application security testing with the pinned sast-toolbox image (Semgrep OSS).
+# Emits SARIF and uploads it to GitHub code scanning. Universal/portable SAST — pair with
+# codeql.yml (deep engine, public repos) for defense-in-depth.
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: 'Path to scan (default: repo root)'
+        type: string
+        default: '.'
+      config:
+        description: 'Semgrep configs, space-separated (registry packs like p/default, or paths). Add LLM packs here.'
+        type: string
+        default: 'p/default'
+      fail-on-findings:
+        description: 'Fail the job on Semgrep findings (false = warn only)'
+        type: boolean
+        default: false
+      upload-sarif:
+        description: 'Upload results to GitHub code scanning'
+        type: boolean
+        default: true
+
+jobs:
+  sast:
+    name: SAST (Semgrep)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read          # pull the pinned scanner image from GHCR
+      security-events: write   # upload SARIF to code scanning
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log in to GHCR (to pull the pinned image)
+        env:
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+      - name: Semgrep scan
+        id: semgrep
+        env:
+          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox:latest
+          SCAN_PATH: ${{ inputs.path }}
+          CONFIG: ${{ inputs.config }}
+        run: |
+          set -uo pipefail
+          docker pull "$IMAGE"
+          mkdir -p out
+          cfg=""
+          for c in $CONFIG; do cfg="$cfg --config $c"; done
+          rc=0
+          docker run --rm -v "$PWD:/src:ro" -v "$PWD/out:/out" -w /src "$IMAGE" \
+            semgrep scan $cfg "/src/$SCAN_PATH" --sarif --output /out/semgrep.sarif --metrics=off || rc=$?
+          echo "rc=$rc" >> "$GITHUB_OUTPUT"
+          if [ "$rc" -gt 1 ]; then echo "::error::semgrep errored (rc=$rc)"; exit "$rc"; fi
+          echo "semgrep finished (rc=$rc; 1 = findings, 0 = clean)"
+
+      - name: Upload SARIF to code scanning
+        if: ${{ inputs.upload-sarif && hashFiles('out/semgrep.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
+        with:
+          sarif_file: out/semgrep.sarif
+          category: semgrep
+
+      - name: Enforce fail-on-findings
+        if: ${{ inputs.fail-on-findings && steps.semgrep.outputs.rc == '1' }}
+        run: |
+          echo "::error::Semgrep reported findings (fail-on-findings=true)."
+          exit 1
