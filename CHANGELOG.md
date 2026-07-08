@@ -14,6 +14,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `self-scan.yml` — dogfoods the reusable `security-scan.yml` against this repo on every push/PR, so changes to the reusable workflow are validated here.
 - `gha-toolbox` image (base + **zizmor** + **actionlint** + shellcheck) and the reusable **`gha-security.yml`** workflow — audits GitHub Actions workflows for expression/template injection, excessive permissions, unpinned actions, and shell issues. Built via the domain matrix and dogfooded in `dogfood-scan.yml`.
 - `skill-audit-toolbox` image (base + **SkillSpector**, pinned by commit + a first-party **test-file gate**) and the reusable **`skill-audit.yml`** workflow — reviews agent skills across the agent-execution surface (SkillSpector) and the developer-execution / test-file surface no scanner covers. Adds **`docs/threat-model.md`** documenting the coverage map, citations, and residual gaps.
+- **Trivy** image-CVE publish gate in `build-toolbox.yml` — each image is built locally and scanned for fixable CRITICAL CVEs *before* it is pushed and signed; publishing is blocked on findings. An informational Trivy scan is also added to `dogfood-scan.yml`.
 
 ### Fixed
 - README "Hardening note" corrected: third-party actions are already pinned to commit SHAs (it previously described version tags).
