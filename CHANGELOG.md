@@ -14,7 +14,8 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `iac-toolbox` (base + **Checkov**) + reusable `iac-security.yml` — Infrastructure-as-Code / misconfiguration scanning (Terraform, Dockerfiles, K8s, Helm, CloudFormation), SARIF → code scanning. Closes issue #2's IaC. (KICS rejected as redundant — see `docs/tool-evaluations.md`.)
 
 ### Fixed
-- Documentation currency pass: `toolbox/README.md` and the root README now describe all four layered images (not just `mcp-review-toolbox`), the Trivy publish gate, and the published release; `.github/repo-metadata.yml` purpose updated to the platform scope.
+- Documentation currency pass: `toolbox/README.md` and the root README now describe the full layered image set (not just `mcp-review-toolbox`), the Trivy publish gate, and the published release; `.github/repo-metadata.yml` purpose updated to the platform scope.
+- Dogfood-driven hardening from the new `iac-toolbox` (Checkov): added top-level `permissions: contents: read` to the reusable workflows (CKV2_GHA_1); documented `.checkov.yaml` baseline for two non-applicable Dockerfile checks (HEALTHCHECK on CLI images; `${BASE}` is digest-pinned in CI).
 
 ---
 
