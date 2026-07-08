@@ -29,7 +29,7 @@ check() { # name current latest
 }
 
 echo "Checking pinned tool versions against upstream..."
-check gitleaks        "$(pinned gitleaks)"        "$(gh_latest gitleaks/gitleaks)"
+check betterleaks     "$(pinned betterleaks)"     "$(gh_latest betterleaks/betterleaks)"
 check trufflehog      "$(pinned trufflehog)"      "$(gh_latest trufflesecurity/trufflehog)"
 check osv-scanner     "$(pinned osv-scanner)"     "$(gh_latest google/osv-scanner)"
 check syft            "$(pinned syft)"            "$(gh_latest anchore/syft)"

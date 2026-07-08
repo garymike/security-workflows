@@ -14,7 +14,7 @@ own isolated sandbox and is never centralized.
 
 | Tool | Purpose |
 |---|---|
-| gitleaks | secret scanning |
+| betterleaks | secret scanning (drop-in gitleaks successor) |
 | trufflehog | verified-secret scanning |
 | osv-scanner | dependency CVEs |
 | syft | SBOM generation (SPDX/CycloneDX) |
@@ -28,7 +28,7 @@ Exact versions are in [`tools.lock`](tools.lock) and the Dockerfile ARGs.
 `mcp-review-toolbox` builds on a shared, separately-published base:
 
 ```
-security-toolbox-base    ← gitleaks · trufflehog · osv-scanner · syft (generic spine)
+security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (generic spine)
   └── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
 ```
 
@@ -47,9 +47,9 @@ docker build --build-arg BASE=security-toolbox-base:ci -t mcp-review-toolbox:ci 
 # Pull the published image (pin by digest in real use)
 IMAGE=ghcr.io/garymike/security-workflows/mcp-review-toolbox:latest
 
-# Secret scan a checkout (filesystem mode; use `gitleaks git` for history)
+# Secret scan a checkout (filesystem mode; use `betterleaks git` for history)
 docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
-  gitleaks dir /src --no-banner --redact
+  betterleaks dir /src --no-banner --redact
 
 # Dependency vulnerabilities
 docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
@@ -66,7 +66,7 @@ Or in a workflow, via the composite Action:
 - uses: garymike/security-workflows/actions/mcp-review-toolbox@<sha>
   with:
     path: .
-    scanners: gitleaks,osv-scanner,syft
+    scanners: betterleaks,osv-scanner,syft
     fail-on-findings: 'true'
 ```
 

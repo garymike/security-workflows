@@ -19,6 +19,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Changed
 - README lede repositioned from "workflows for personal repos" to the aggregator/platform framing.
 - Toolbox restructured into layered images: `mcp-review-toolbox` (`toolbox/mcp-review/Dockerfile`) now builds `FROM security-toolbox-base` pinned by digest, adding only `pip-audit` + `snyk-agent-scan`. `build-toolbox.yml` builds/signs the base then the domain image(s) via matrix; `dogfood-scan.yml` builds the layered stack from source.
+- Secret scanning swapped from **gitleaks** to **betterleaks** (its drop-in successor by the original author) across the base image, dogfood scan, composite action, and `tools.lock` / `check-tool-updates.sh`; `gitleaks` stays an accepted alias in the composite action.
 
 ---
 

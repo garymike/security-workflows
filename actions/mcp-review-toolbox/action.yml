@@ -1,5 +1,5 @@
 name: 'MCP review toolbox'
-description: 'Run pinned static security scanners (gitleaks, trufflehog, osv-scanner, syft SBOM) from the signed mcp-review-toolbox container image.'
+description: 'Run pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft SBOM) from the signed mcp-review-toolbox container image.'
 branding:
   icon: 'shield'
   color: 'purple'
@@ -14,9 +14,9 @@ inputs:
     required: false
     default: '.'
   scanners:
-    description: 'Comma-separated scanners to run: gitleaks, trufflehog, osv-scanner, syft.'
+    description: 'Comma-separated scanners to run: betterleaks, trufflehog, osv-scanner, syft.'
     required: false
-    default: 'gitleaks,osv-scanner,syft'
+    default: 'betterleaks,osv-scanner,syft'
   fail-on-findings:
     description: 'Fail the step if a scanner reports findings (secrets / vulnerabilities).'
     required: false
@@ -48,8 +48,8 @@ runs:
           [ -z "$s" ] && continue
           echo "::group::$s"
           case "$s" in
-            gitleaks)
-              run gitleaks dir "/work/$SCAN_PATH" --no-banner --redact || rc=$? ;;
+            betterleaks|gitleaks)
+              run betterleaks dir "/work/$SCAN_PATH" --no-banner --redact || rc=$? ;;
             trufflehog)
               run trufflehog filesystem "/work/$SCAN_PATH" --only-verified --fail || rc=$? ;;
             osv-scanner)
