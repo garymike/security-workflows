@@ -1,0 +1,11 @@
+# Checkov config for this repo (Checkov is adopted as the IaC scanner — Phase 8).
+# Documented, justified suppressions for checks that don't apply here.
+skip-check:
+  # CKV_DOCKER_2 — HEALTHCHECK. Our images are short-lived scanner CLIs, not
+  # long-running services, so a HEALTHCHECK is not meaningful.
+  - CKV_DOCKER_2
+  # CKV_DOCKER_7 — non-latest base tag. Domain Dockerfiles use `FROM ${BASE}` whose
+  # default is :latest for standalone builds, but CI always passes BASE pinned by
+  # digest (build-toolbox.yml), so every published image is digest-pinned. The base
+  # image itself pins the OS by digest.
+  - CKV_DOCKER_7

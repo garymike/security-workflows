@@ -3,6 +3,10 @@ name: Security audit (reusable)
 on:
   workflow_call:
 
+permissions:
+  contents: read
+  administration: read   # read repo settings: Actions permissions, branch protection
+
 jobs:
   audit:
     name: Repository security settings

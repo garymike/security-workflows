@@ -1,8 +1,7 @@
-name: SAST (reusable)
+name: IaC security (reusable)
 
-# Static application security testing with the pinned sast-toolbox image (Semgrep OSS).
-# Emits SARIF and uploads it to GitHub code scanning. Universal/portable SAST — pair with
-# codeql.yml (deep engine, public repos) for defense-in-depth.
+# Infrastructure-as-Code / misconfiguration scanning with the pinned iac-toolbox image
+# (Checkov). Emits SARIF and uploads it to GitHub code scanning.
 
 on:
   workflow_call:
@@ -11,12 +10,12 @@ on:
         description: 'Path to scan (default: repo root)'
         type: string
         default: '.'
-      config:
-        description: 'Semgrep configs, space-separated (registry packs like p/default, or paths). Add LLM packs here.'
+      framework:
+        description: 'Checkov frameworks (comma-separated) or "all"'
         type: string
-        default: 'p/default'
+        default: 'all'
       fail-on-findings:
-        description: 'Fail the job on Semgrep findings (false = warn only)'
+        description: 'Fail the job on Checkov findings (false = warn only)'
         type: boolean
         default: false
       upload-sarif:
@@ -28,8 +27,8 @@ permissions:
   contents: read
 
 jobs:
-  sast:
-    name: SAST (Semgrep)
+  iac-security:
+    name: IaC security (Checkov)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -46,37 +45,34 @@ jobs:
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
-      - name: Semgrep scan
-        id: semgrep
+      - name: Checkov scan
+        id: checkov
         env:
-          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox:latest
+          IMAGE: ghcr.io/garymike/security-workflows/iac-toolbox:latest
           SCAN_PATH: ${{ inputs.path }}
-          CONFIG: ${{ inputs.config }}
+          FRAMEWORK: ${{ inputs.framework }}
         run: |
           set -uo pipefail
           docker pull "$IMAGE"
           mkdir -p out
-          cfg=""
-          for c in $CONFIG; do cfg="$cfg --config $c"; done
           rc=0
           # SARIF to stdout, redirected on the host (avoids container-uid write perms).
           docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
-            semgrep scan $cfg "/src/$SCAN_PATH" --sarif --metrics=off > out/semgrep.sarif || rc=$?
-          sarif=false; [ -s out/semgrep.sarif ] && sarif=true
+            checkov -d "/src/$SCAN_PATH" --framework "$FRAMEWORK" --quiet --output sarif > out/checkov.sarif || rc=$?
+          sarif=false; [ -s out/checkov.sarif ] && sarif=true
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
-          if [ "$rc" -gt 1 ]; then echo "::error::semgrep errored (rc=$rc)"; exit "$rc"; fi
-          echo "semgrep finished (rc=$rc; 1 = findings, 0 = clean)"
+          echo "checkov finished (rc=$rc; non-zero = findings)"
 
       - name: Upload SARIF to code scanning
-        if: ${{ inputs.upload-sarif && steps.semgrep.outputs.sarif == 'true' }}
+        if: ${{ inputs.upload-sarif && steps.checkov.outputs.sarif == 'true' }}
         uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
         with:
-          sarif_file: out/semgrep.sarif
-          category: semgrep
+          sarif_file: out/checkov.sarif
+          category: checkov
 
       - name: Enforce fail-on-findings
-        if: ${{ inputs.fail-on-findings && steps.semgrep.outputs.rc == '1' }}
+        if: ${{ inputs.fail-on-findings && steps.checkov.outputs.rc != '0' }}
         run: |
-          echo "::error::Semgrep reported findings (fail-on-findings=true)."
+          echo "::error::Checkov reported findings (fail-on-findings=true)."
           exit 1
