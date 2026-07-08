@@ -13,7 +13,7 @@
 #   - Python tools pinned to exact PyPI versions (wheels).
 # Keep the ARG versions below in sync with toolbox/tools.lock.
 
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS downloader
+FROM python:3.14-slim-bookworm@sha256:4ff4b92a68355dbdb52584ab3391dff8d371a61d4e063468bfd0130e3189c6d9 AS downloader
 
 ARG GITLEAKS_VERSION=8.30.1
 ARG TRUFFLEHOG_VERSION=3.95.8
@@ -73,7 +73,7 @@ RUN set -eux; \
 
 
 # --------------------------------------------------------------------------- #
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b
+FROM python:3.14-slim-bookworm@sha256:4ff4b92a68355dbdb52584ab3391dff8d371a61d4e063468bfd0130e3189c6d9
 
 # snyk-agent-scan is the renamed successor to invariantlabs-ai/mcp-scan (the
 # PyPI `mcp-scan` package is now a redirect stub). Same version line (0.5.12).
