@@ -20,6 +20,9 @@ Runs on a schedule (weekly recommended). Checks:
 - Branch protection configured
 - SECURITY.md present
 
+### `gha-security.yml`
+Reusable (`workflow_call`). Audits the caller's GitHub Actions workflows with the pinned `gha-toolbox` image — **zizmor** (expression/template injection, excessive permissions, unpinned actions) and **actionlint** (syntax + embedded shell via shellcheck).
+
 ## Usage
 
 Add a `.github/workflows/security.yml` to each repo:

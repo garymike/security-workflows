@@ -11,10 +11,12 @@ jobs:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Check Dependabot alerts
         run: |
-          STATUS=$(gh api repos/$GITHUB_REPOSITORY/vulnerability-alerts -i 2>&1 | head -1)
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/vulnerability-alerts" -i 2>&1 | head -1)
           if echo "$STATUS" | grep -q "204"; then
             echo "Dependabot alerts: enabled"
           else
@@ -23,7 +25,7 @@ jobs:
 
       - name: Check Dependabot auto-fix
         run: |
-          STATUS=$(gh api repos/$GITHUB_REPOSITORY/automated-security-fixes -i 2>&1 | head -1)
+          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/automated-security-fixes" -i 2>&1 | head -1)
           if echo "$STATUS" | grep -q "204"; then
             echo "Dependabot auto-fix: enabled"
           else
@@ -32,7 +34,7 @@ jobs:
 
       - name: Check Actions default permissions
         run: |
-          PERMS=$(gh api repos/$GITHUB_REPOSITORY/actions/permissions/workflow --jq '.default_workflow_permissions' 2>/dev/null)
+          PERMS=$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" --jq '.default_workflow_permissions' 2>/dev/null)
           if [ "$PERMS" = "read" ]; then
             echo "Actions default permissions: read-only"
           else
@@ -41,7 +43,7 @@ jobs:
 
       - name: Check delete-branch-on-merge
         run: |
-          DBM=$(gh api repos/$GITHUB_REPOSITORY --jq '.delete_branch_on_merge' 2>/dev/null)
+          DBM=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.delete_branch_on_merge' 2>/dev/null)
           if [ "$DBM" = "true" ]; then
             echo "Delete branch on merge: enabled"
           else
@@ -50,8 +52,8 @@ jobs:
 
       - name: Check branch protection
         run: |
-          BRANCH=$(gh api repos/$GITHUB_REPOSITORY --jq '.default_branch' 2>/dev/null)
-          HTTP=$(gh api repos/$GITHUB_REPOSITORY/branches/$BRANCH/protection -i 2>&1 | head -1)
+          BRANCH=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch' 2>/dev/null)
+          HTTP=$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH/protection" -i 2>&1 | head -1)
           if echo "$HTTP" | grep -q "200"; then
             echo "Branch protection: configured on '$BRANCH'"
           elif echo "$HTTP" | grep -q "403"; then
@@ -70,7 +72,7 @@ jobs:
 
       - name: Check visibility intent vs actual
         run: |
-          ACTUAL=$(gh api repos/$GITHUB_REPOSITORY --jq '.visibility' 2>/dev/null)
+          ACTUAL=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.visibility' 2>/dev/null)
           METADATA=".github/repo-metadata.yml"
           if [ ! -f "$METADATA" ]; then
             echo "::warning::$METADATA is missing — add it to declare intended visibility (public/private) for audit tracking"

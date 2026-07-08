@@ -1,0 +1,52 @@
+name: GHA security (reusable)
+
+# Audits the caller's GitHub Actions workflows with the pinned gha-toolbox image:
+# zizmor (expression/template injection, excessive permissions, unpinned actions)
+# and actionlint (workflow syntax + embedded shell via shellcheck).
+
+on:
+  workflow_call:
+    inputs:
+      fail-on-findings:
+        description: 'Fail if zizmor/actionlint report issues (false = warn only)'
+        type: boolean
+        default: false
+
+jobs:
+  gha-security:
+    name: GitHub Actions security (zizmor + actionlint)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read   # pull the pinned scanner image from GHCR
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
+
+      - name: Log in to GHCR (to pull the pinned image)
+        env:
+          ACTOR: ${{ github.actor }}
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
+
+      - name: Audit workflows (actionlint + zizmor)
+        env:
+          IMAGE: ghcr.io/garymike/security-workflows/gha-toolbox:latest
+          FAIL: ${{ inputs.fail-on-findings }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -uo pipefail
+          docker pull "$IMAGE"
+          rc=0
+          echo "::group::actionlint"
+          docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" actionlint -color || rc=$?
+          echo "::endgroup::"
+          echo "::group::zizmor"
+          docker run --rm -e GH_TOKEN -v "$PWD:/src:ro" -w /src "$IMAGE" zizmor . || rc=$?
+          echo "::endgroup::"
+          if [ "$FAIL" = "true" ] && [ "$rc" -ne 0 ]; then
+            echo "::error::gha-security found issues"; exit "$rc"
+          fi
+          [ "$rc" -ne 0 ] && echo "::warning::gha-security found issues (fail-on-findings=false)"
+          true

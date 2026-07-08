@@ -85,8 +85,9 @@ jobs:
         include:
           - image: mcp-review-toolbox
             context: ./toolbox/mcp-review
-          # Phase 3/4 add siblings here (gha-toolbox, skill-audit-toolbox) — each
-          # builds FROM the same signed base by digest.
+          - image: gha-toolbox
+            context: ./toolbox/gha
+          # Phase 4 adds skill-audit-toolbox here — same signed base by digest.
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
