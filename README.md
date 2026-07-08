@@ -28,7 +28,8 @@ Reusable (`workflow_call`). Reviews agent skills with the pinned `skill-audit-to
 
 ## Usage
 
-Add a `.github/workflows/security.yml` to each repo:
+Add a `.github/workflows/security.yml` to each repo, pinned to a release tag (or a
+commit SHA for maximum safety — see [ADR-0008](docs/adr/0008-versioning.md)):
 
 ```yaml
 name: Security
@@ -43,16 +44,36 @@ on:
 
 jobs:
   scan:
-    uses: garymike/security-workflows/.github/workflows/security-scan.yml@main
+    permissions:
+      contents: read
+      packages: read      # pull the pinned scanner image from GHCR
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v0.3.0
     secrets: inherit
 
   audit:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
-    uses: garymike/security-workflows/.github/workflows/security-audit.yml@main
+    permissions:
+      contents: read
+    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v0.3.0
     secrets: inherit
 ```
 
+Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) and
+`skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`).
+
+`@v0.3.0` is the current release; a moving `@v0` tag tracks the latest 0.x. This repo's
+own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
+supply-chain safety. External callers also need the GHCR scanner-image package to be
+**public**.
+
 Or use [garymike/repo-template](https://github.com/garymike/repo-template) when creating new repos — it ships with this pre-wired.
+
+## Documentation
+
+- [`docs/architecture.md`](docs/architecture.md) — the three planes + image layer graph.
+- [`docs/adr/`](docs/adr/) — architecture decision records (0001–0009).
+- [`docs/threat-model.md`](docs/threat-model.md) — skill-audit coverage map + residual gaps.
+- [`docs/tool-evaluations.md`](docs/tool-evaluations.md) — tools assessed, adopted, deferred.
 
 ## Container toolbox
 
