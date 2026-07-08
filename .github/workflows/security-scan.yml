@@ -3,26 +3,38 @@ name: Security scan (reusable)
 on:
   workflow_call:
     inputs:
-      gitleaks-fail-on-findings:
+      fail-on-findings:
         description: 'Fail the workflow if secrets are detected (false = warn only)'
         type: boolean
         default: true
 
 jobs:
-  gitleaks:
-    name: Secret scanning
+  secrets:
+    name: Secret scanning (betterleaks)
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      packages: read   # pull the pinned scanner image from GHCR
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
-        with:
-          fetch-depth: 0
-      - uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
-        continue-on-error: ${{ !inputs.gitleaks-fail-on-findings }}
+
+      - name: Log in to GHCR (to pull the pinned image)
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Secret scan via the pinned toolbox image
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          IMAGE: ghcr.io/garymike/security-workflows/security-toolbox-base:latest
+          FAIL: ${{ inputs.fail-on-findings }}
+        run: |
+          set -uo pipefail
+          docker pull "$IMAGE"
+          if docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" betterleaks dir /src --no-banner --redact; then
+            echo "betterleaks: no secrets found."
+          else
+            echo "::error::betterleaks reported potential secrets."
+            if [ "$FAIL" = "true" ]; then exit 1; fi
+            echo "::warning::continuing (fail-on-findings=false)."
+          fi
 
   action-pinning:
     name: Check action version pinning

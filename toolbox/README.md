@@ -63,7 +63,7 @@ docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
 Or in a workflow, via the composite Action:
 
 ```yaml
-- uses: garymike/security-workflows/actions/mcp-review-toolbox@<sha>
+- uses: garymike/security-workflows/actions/toolbox-scan@<sha>
   with:
     path: .
     scanners: betterleaks,osv-scanner,syft

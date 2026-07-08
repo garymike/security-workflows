@@ -1,0 +1,22 @@
+name: Self scan
+
+# Dogfoods our own reusable security-scan.yml against this repo, so that changes to
+# the reusable workflow (and the pinned-image path) are validated here on every
+# push/PR — not only when a downstream repo happens to call it.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: read
+
+jobs:
+  security-scan:
+    uses: ./.github/workflows/security-scan.yml
+    with:
+      fail-on-findings: true
+    secrets: inherit
