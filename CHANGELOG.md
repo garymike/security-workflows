@@ -13,6 +13,7 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `security-toolbox-base` — a separately-published, cosign-signed base image bundling the generic static scanners (gitleaks, trufflehog, osv-scanner, syft); the shared spine for every domain toolbox image (`toolbox/base/Dockerfile`).
 - `self-scan.yml` — dogfoods the reusable `security-scan.yml` against this repo on every push/PR, so changes to the reusable workflow are validated here.
 - `gha-toolbox` image (base + **zizmor** + **actionlint** + shellcheck) and the reusable **`gha-security.yml`** workflow — audits GitHub Actions workflows for expression/template injection, excessive permissions, unpinned actions, and shell issues. Built via the domain matrix and dogfooded in `dogfood-scan.yml`.
+- `skill-audit-toolbox` image (base + **SkillSpector**, pinned by commit + a first-party **test-file gate**) and the reusable **`skill-audit.yml`** workflow — reviews agent skills across the agent-execution surface (SkillSpector) and the developer-execution / test-file surface no scanner covers. Adds **`docs/threat-model.md`** documenting the coverage map, citations, and residual gaps.
 
 ### Fixed
 - README "Hardening note" corrected: third-party actions are already pinned to commit SHAs (it previously described version tags).

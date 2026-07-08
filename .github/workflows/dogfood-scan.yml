@@ -54,6 +54,16 @@ jobs:
         continue-on-error: true
         run: docker run --rm -v "$PWD:/src:ro" -w /src gha-toolbox:ci zizmor --offline .
 
+      - name: Build skill-audit-toolbox on the local base (validates toolbox/skill-audit/Dockerfile)
+        run: docker build --build-arg BASE=security-toolbox-base:ci -t skill-audit-toolbox:ci ./toolbox/skill-audit
+
+      - name: skill-audit-toolbox self-test (tool versions)
+        run: docker run --rm skill-audit-toolbox:ci
+
+      - name: Skill test-file gate on this repo — informational
+        continue-on-error: true
+        run: docker run --rm -v "$PWD:/src:ro" -w /src skill-audit-toolbox:ci skill-testfile-gate /src
+
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: sbom
