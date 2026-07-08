@@ -1,6 +1,8 @@
 # security-workflows
 
-Reusable GitHub Actions security workflows for personal repos.
+Reusable GitHub Actions security workflows and a signed, pinned scanner **toolbox**
+image — a best-in-class aggregator of upstream security tools behind a hardened,
+fully pinned supply chain. Built to be reused across repos, and dogfooded here.
 
 ## Workflows
 
@@ -60,7 +62,9 @@ caller's isolated environment. See [`toolbox/README.md`](toolbox/README.md).
   (weekly + on change).
 - `dogfood-scan.yml` — builds the image from source and scans this repo.
 
-## Hardening note
+## Supply-chain hardening
 
-The workflows in this repo use version tags (`@v4`, `@v2`) rather than SHA pins.
-Pin them for maximum supply-chain safety once you've validated the setup.
+Every third-party action in these workflows is pinned to a full commit SHA (the
+trailing `# vX` comment records the human-readable version). Pinning the
+reusable-workflow *call* itself — to a release tag or commit SHA rather than a
+moving branch — is the recommended next step once tagged releases are published.
