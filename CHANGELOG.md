@@ -8,6 +8,9 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- `CONTRIBUTING.md` — local image builds, the signed-commit/PR flow, and the release process.
+
 ### Fixed
 - Documentation currency pass: `toolbox/README.md` and the root README now describe all four layered images (not just `mcp-review-toolbox`), the Trivy publish gate, and the published release; `.github/repo-metadata.yml` purpose updated to the platform scope.
 
