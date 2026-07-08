@@ -63,8 +63,8 @@ Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) a
 
 `@v0.3.0` is the current release; a moving `@v0` tag tracks the latest 0.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
-supply-chain safety. External callers also need the GHCR scanner-image package to be
-**public**.
+supply-chain safety. The scanner images are published **publicly** on GHCR, so any caller
+can pull them.
 
 Or use [garymike/repo-template](https://github.com/garymike/repo-template) when creating new repos — it ships with this pre-wired.
 
@@ -74,6 +74,7 @@ Or use [garymike/repo-template](https://github.com/garymike/repo-template) when 
 - [`docs/adr/`](docs/adr/) — architecture decision records (0001–0009).
 - [`docs/threat-model.md`](docs/threat-model.md) — skill-audit coverage map + residual gaps.
 - [`docs/tool-evaluations.md`](docs/tool-evaluations.md) — tools assessed, adopted, deferred.
+- [`CONTRIBUTING.md`](CONTRIBUTING.md) — local builds, the signed-commit/PR flow, and releases.
 
 ## Container toolbox
 
