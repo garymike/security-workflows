@@ -24,7 +24,7 @@ every published scanner inspects only the first:
 | Surface | What runs it | What we run | Residual gap |
 |---|---|---|---|
 | **Agent-execution** — `SKILL.md`, agent-invoked scripts, tool definitions | the agent, at use time | **SkillSpector** (prompt injection, tool poisoning, data exfil, excessive agency, AST/taint/YARA) | evadable by novel packing / obfuscation (see below) |
-| **Developer-execution** — `*.test.ts`, `*.spec.js`, `conftest.py`, `*.config.js`, `__tests__/` bundled in the skill dir | the **developer's** test runner (Jest / Vitest / pytest), on install/CI — **no agent involved** | **`skill-testfile-gate`** (first-party) — the surface *no* published scanner covers | patterns list is heuristic; new runner-discovered file types must be added |
+| **Developer-execution** — `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, **npm lifecycle scripts**, **git hooks**, `.pth`/`sitecustomize` — anything auto-run without the developer choosing to run *that file* ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain — test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git — on install/CI, **no agent involved** | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) + a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). The surface *no* published scanner covers. | evadable by an adaptive author → WARNING findings **escalate to a sandboxed Tier-2 run**; surface file list stays heuristic |
 | **Time-of-use** — a skill that points the agent at an external URL fetched *after* review | the network, later | *(not a scanning problem)* | **answered by commit-pinning**, not by scanning |
 
 The developer-execution row is this repo's original contribution. Gecko Security (2026)
@@ -32,7 +32,10 @@ demonstrated that a skill with a clean `SKILL.md` can bundle a `reviewer.test.ts
 `beforeAll` block reads `~/.ssh`, `~/.aws/credentials`, and CI env secrets and exfiltrates
 them — executing through the test runner with full local permissions, entirely outside
 the agent. A fake skill using adjacent techniques reportedly reached ~26,000 agents while
-passing every scanner. `skill-testfile-gate` flags exactly these files.
+passing every scanner. `skill-testfile-gate` flags exactly these files — and, since v2, it
+separates **presence** (an auto-run file exists — a low-severity inventory signal) from
+**malice** (that file reads `~/.ssh` and exfiltrates inside `beforeAll` — a blocking finding),
+so a skill that merely ships honest tests is not false-positived; only one that weaponises them.
 
 ## Residual gaps we deliberately do NOT claim to catch
 
@@ -42,8 +45,12 @@ passing every scanner. `skill-testfile-gate` flags exactly these files.
   commit and reviewing every diff** (OWASP Agentic Skills Top 10). The `skill-audit` workflow
   reports; it cannot bind a moving reference.
 - **Novel static-analysis evasion.** Self-extracting/packed payloads (e.g. the *SkillCloak*
-  technique) are designed to slip past static scanners including SkillSpector. Static
-  analysis is necessary, not sufficient.
+  technique, arXiv 2607.02357 — SFS Packing bypasses >90% of nine surveyed scanners) are
+  designed to slip past static scanners including SkillSpector. Static analysis is necessary,
+  not sufficient — so the gate treats WARNING findings and opaque/packed artifacts as
+  **escalation candidates for a sandboxed run** (the Tier-2 `security-agents` skill-auditor),
+  matching that paper's own conclusion: static = cheap pre-filter, dynamic execution auditing
+  = the load-bearing defense.
 - **Semantic intent.** "Observing kinetic actions is solvable; intent is not." Deciding
   whether a plausible-looking capability is *malicious* still needs a human.
 

@@ -1,0 +1,113 @@
+# agent-exec-surface — first-party Semgrep rules for the DEVELOPER-execution surface.
+#
+# skill-testfile-gate runs these ONLY over files it has already identified as auto-executed
+# by the developer's toolchain (test files, lifecycle scripts, git hooks, config) inside an
+# agent workspace. So a match means "an auto-run file does something hostile", not merely
+# "some code somewhere does X" — the scope is the signal.
+#
+# Severity contract (see docs/adr/0012):
+#   ERROR   = malice → the gate BLOCKS. Near-zero legitimate reason for an auto-run skill file.
+#   WARNING = suspicious → reported + a candidate to escalate to the Tier-2 sandbox. Sometimes
+#             legitimate (an integration test), so it does not block on its own.
+#
+# Static rules are a cheap pre-filter, not a trust gate: an adaptive author can obfuscate past
+# them (SkillCloak, arXiv 2607.02357). That is why the sandbox escalation exists. See threat-model.md.
+
+rules:
+  # ----------------------------- ERROR (block) -----------------------------
+
+  - id: dev-exec-credential-file-access
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Auto-executed skill file reads a developer credential/secret file. This is the Gecko
+      developer-execution-surface vector: the file runs via the test runner / package manager,
+      outside the agent, with full local permissions.
+    metadata:
+      category: security
+      surface: developer-execution
+      references:
+        - https://venturebeat.com/security/anthropic-skill-scanners-passed-every-check-malicious-code-test-file
+    patterns:
+      - pattern-regex: '(?i)(\.ssh/(id_(rsa|ed25519|ecdsa|dsa)|authorized_keys)|\.aws/credentials|\.kube/config|\.config/gcloud|\.netrc|\.docker/config\.json|\.npmrc|/etc/(passwd|shadow))'
+
+  - id: dev-exec-download-and-run
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Auto-executed skill file downloads and runs remote code (curl|bash / wget|sh / iwr|iex).
+      Supply-chain dropper on the developer-execution surface.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)((curl|wget)\s[^\n|]*\|\s*(ba)?sh|iwr\s[^\n|]*\|\s*iex|Invoke-WebRequest[^\n]*Invoke-Expression)'
+
+  - id: dev-exec-decode-and-exec
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Auto-executed skill file decodes an encoded blob and executes it (base64 -> eval/exec/bash).
+      Obfuscated payload execution.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(base64\s+-d[^\n|]*\|\s*(ba)?sh|(atob|Buffer\.from)\s*\([^\n)]*\)[^\n]{0,30}(eval|Function)\s*\(|base64\.b64decode\s*\([^\n)]*\)[^\n]{0,40}(exec|eval)\s*\(|(marshal|codecs)\.(loads|decode)\s*\([^\n)]*\)[^\n]{0,40}exec)'
+
+  - id: dev-exec-reverse-shell
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Reverse-shell pattern (raw socket + shell spawn, or /dev/tcp redirect) in an auto-executed
+      skill file.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(/dev/tcp/[0-9a-z.]+/[0-9]+|socket\.socket\([^\n)]*\)[\s\S]{0,300}(os\.dup2|/bin/(ba)?sh|subprocess\.(call|Popen)))'
+
+  - id: dev-exec-writes-agent-memory
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Auto-executed skill file writes to agent memory/config (MEMORY.md, SOUL.md, AGENTS.md,
+      .claude/, .cursor/) — cross-session persistence / instruction poisoning (Snyk ToxicSkills).
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|fs\.write|open\s*\([^\n)]*[\x22\x27]a?w|>>?\s*)[^\n]{0,60}(MEMORY\.md|SOUL\.md|AGENTS\.md|\.claude/|\.cursor/)'
+
+  - id: dev-exec-obfuscated-assembly
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Dynamic name assembly / reflection used to hide a dangerous call (getattr on os/builtins,
+      __import__ with concatenation, chr()+chr()). A SkillCloak Structural-Obfuscation tell.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(getattr\s*\(\s*(os|sys|__builtins__|builtins|importlib|subprocess)\b|__import__\s*\(\s*[\x22\x27][a-z]{0,6}[\x22\x27]\s*\+|chr\s*\(\s*\d+\s*\)\s*\+\s*chr\s*\()'
+
+  # -------------------------- WARNING (report + escalate) --------------------------
+
+  - id: dev-exec-outbound-network
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Outbound network call in an auto-executed skill file. Unusual for a test/config and a path
+      to exfiltration. Review; escalate to a sandbox run if the skill is untrusted.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(\bfetch\s*\(|\baxios\b|XMLHttpRequest|\bWebSocket\s*\(|requests\.(get|post|put|patch|delete)\s*\(|urllib\.request|http\.client|\bhttps?\.(get|post|request)\s*\(|net\.(connect|createConnection)\s*\()'
+
+  - id: dev-exec-subprocess-spawn
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Subprocess / shell spawn in an auto-executed skill file. Review for command execution.
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(\bchild_process\b|\bexecSync\s*\(|\bexecFileSync\s*\(|\bspawnSync\s*\(|\bspawn\s*\(|subprocess\.(run|call|Popen|check_output|check_call)\s*\(|\bos\.system\s*\(|\bos\.popen\s*\()'
+
+  - id: dev-exec-env-harvest
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      Enumerates environment variables in an auto-executed skill file — in CI, process.env / os.environ
+      hold deployment tokens and cloud credentials (E2 env-harvesting).
+    metadata: { category: security, surface: developer-execution }
+    patterns:
+      - pattern-regex: '(?i)(\.\.\.process\.env|Object\.(keys|entries|values|assign)\s*\([^)]*process\.env|JSON\.stringify\s*\(\s*process\.env|os\.environ\.(items|keys|copy)\s*\(|dict\s*\(\s*os\.environ\s*\))'

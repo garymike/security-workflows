@@ -21,6 +21,7 @@ actionlint         1.7.12    github:rhysd/actionlint             # GitHub Action
 # --- skill-audit-toolbox (= security-toolbox-base + these) ---
 # SkillSpector ships no PyPI release or tags, so it is pinned by commit SHA.
 skillspector       c2d09df019e358d3dc12d980b82c798b87cb9f56  github:NVIDIA/SkillSpector  # Anthropic Skill / agent scanner (pinned by commit)
+semgrep            1.168.0   pypi:semgrep                        # test-file-gate malice engine (same pin as sast-toolbox)
 #
 # --- sast-toolbox (= security-toolbox-base + these) ---
 semgrep            1.168.0   pypi:semgrep                        # SAST (general code + LLM rulesets via --config)
