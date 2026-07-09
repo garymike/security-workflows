@@ -1,0 +1,26 @@
+# pre-commit hooks published by security-workflows. Consumers add to their .pre-commit-config.yaml:
+#
+#   repos:
+#     - repo: https://github.com/garymike/security-workflows
+#       rev: v1.1.0
+#       hooks:
+#         - id: skill-testfile-gate
+#
+# then install it on the stages that matter — at commit AND when a skill arrives via a pull, before
+# `npm test` would detonate it (see the README "Shift-left" section):
+#
+#   pre-commit install --hook-type pre-commit --hook-type post-merge --hook-type post-checkout
+#
+# Requires Docker; runs the pinned, signed skill-audit-toolbox image.
+
+- id: skill-testfile-gate
+  name: skill-testfile-gate (developer-execution surface)
+  description: >-
+    Block an agent skill that weaponises the DEVELOPER-execution surface — a bundled test file, git
+    hook, or npm lifecycle script that auto-runs on `npm test` / `git commit` / `npm install`, outside
+    the agent, with your local permissions.
+  entry: ghcr.io/garymike/security-workflows/skill-audit-toolbox:latest skill-testfile-gate
+  language: docker_image
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit, post-merge, post-checkout]
