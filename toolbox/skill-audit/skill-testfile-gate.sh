@@ -103,31 +103,30 @@ while IFS= read -r f; do
   err "[malice] invisible/bidirectional Unicode (obfuscation tell): $f"; malice=$((malice + 1))
 done < <(grep -lP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{FEFF}]' "${candidates[@]}" 2>/dev/null || true)
 
-# 3b. Semgrep rule pack over the candidate files (scope IS the signal).
+# 3b. Semgrep rule pack over the candidate files (scope IS the signal). We read severity from
+#     Semgrep's native JSON (extra.severity: ERROR/WARNING/INFO) — reliable, unlike the SARIF
+#     result.level, which Semgrep does not always populate — and emit SARIF separately for upload.
 if command -v semgrep >/dev/null 2>&1 && [ -f "$RULES" ]; then
-  sarif="${SARIF_OUT:-$(mktemp)}"
-  semgrep scan --config "$RULES" --sarif --output "$sarif" --metrics=off --quiet \
+  json="$(mktemp)"
+  semgrep scan --config "$RULES" --json --output "$json" --metrics=off --quiet \
     --disable-version-check "${candidates[@]}" >/dev/null 2>&1 || true
-  if [ -s "$sarif" ]; then
-    report=$(python3 - "$sarif" <<'PY'
+  if [ -s "$json" ]; then
+    report=$(python3 - "$json" <<'PY'
 import json, sys
 try:
     d = json.load(open(sys.argv[1]))
 except Exception:
     print("__COUNTS__ 0 0"); sys.exit(0)
 e = w = 0
-for run in d.get("runs", []):
-    for r in run.get("results", []):
-        lvl = r.get("level", "warning")
-        msg = (r.get("message", {}).get("text", "") or "").splitlines()
-        msg = msg[0] if msg else ""
-        loc = (r.get("locations") or [{}])[0].get("physicalLocation", {})
-        f = loc.get("artifactLocation", {}).get("uri", "?")
-        ln = loc.get("region", {}).get("startLine", "?")
-        if lvl == "error":
-            e += 1; print(f"::error::[malice] {f}:{ln} {msg}")
-        else:
-            w += 1; print(f"::warning::[suspicious] {f}:{ln} {msg}")
+for r in d.get("results", []):
+    sev = (r.get("extra", {}).get("severity") or "WARNING").upper()
+    msg = (r.get("extra", {}).get("message", "") or "").splitlines()
+    msg = msg[0] if msg else ""
+    f = r.get("path", "?"); ln = (r.get("start", {}) or {}).get("line", "?")
+    if sev == "ERROR":
+        e += 1; print(f"::error::[malice] {f}:{ln} {msg}")
+    else:
+        w += 1; print(f"::warning::[suspicious] {f}:{ln} {msg}")
 print(f"__COUNTS__ {e} {w}")
 PY
 )
@@ -135,7 +134,12 @@ PY
     read -r se sw < <(echo "$report" | grep '^__COUNTS__' | tail -1 | awk '{print $2, $3}')
     malice=$((malice + ${se:-0})); suspicious=$((suspicious + ${sw:-0}))
   fi
-  [ -n "$SARIF_OUT" ] || rm -f "$sarif"
+  rm -f "$json"
+  # SARIF for code-scanning upload (separate, so the block decision never depends on SARIF quirks).
+  if [ -n "$SARIF_OUT" ]; then
+    semgrep scan --config "$RULES" --sarif --output "$SARIF_OUT" --metrics=off --quiet \
+      --disable-version-check "${candidates[@]}" >/dev/null 2>&1 || true
+  fi
 else
   warn "semgrep or rule pack unavailable — malice layer skipped (inventory only). Rules: $RULES"
 fi
