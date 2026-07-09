@@ -9,6 +9,8 @@ updates:
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
     groups:
       github-actions:
         patterns: ["*"]
@@ -20,9 +22,13 @@ updates:
     directory: /toolbox/base
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   # gha-toolbox's downloader stage also pins the python base image.
   - package-ecosystem: docker
     directory: /toolbox/gha
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7

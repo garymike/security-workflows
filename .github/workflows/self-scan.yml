@@ -5,6 +5,8 @@ name: Self scan
 # gap that let the v0.4.0/v0.4.1 bugs ship. CodeQL is omitted (this repo has no
 # CodeQL-supported languages). These pull the last-published images; the dogfood job builds
 # and blocking-lints the images and workflows themselves.
+#
+# No `secrets: inherit` — the reusable workflows only use the automatic GITHUB_TOKEN.
 
 on:
   push:
@@ -23,14 +25,12 @@ jobs:
     uses: ./.github/workflows/security-scan.yml
     with:
       fail-on-findings: true
-    secrets: inherit
 
   gha-security:
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/gha-security.yml
-    secrets: inherit
 
   sast:
     permissions:
@@ -38,7 +38,6 @@ jobs:
       packages: read
       security-events: write
     uses: ./.github/workflows/sast.yml
-    secrets: inherit
 
   iac-security:
     permissions:
@@ -46,17 +45,14 @@ jobs:
       packages: read
       security-events: write
     uses: ./.github/workflows/iac-security.yml
-    secrets: inherit
 
   skill-audit:
     permissions:
       contents: read
       packages: read
     uses: ./.github/workflows/skill-audit.yml
-    secrets: inherit
 
   security-audit:
     permissions:
       contents: read
     uses: ./.github/workflows/security-audit.yml
-    secrets: inherit
