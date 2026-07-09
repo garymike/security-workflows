@@ -50,6 +50,7 @@ jobs:
     permissions:
       contents: read
       packages: read
+      security-events: write   # gate uploads SARIF to code scanning
     uses: ./.github/workflows/skill-audit.yml
 
   security-audit:

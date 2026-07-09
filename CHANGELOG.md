@@ -27,6 +27,11 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `skill-audit-toolbox` now pins **Semgrep** explicitly (the gate's malice engine) instead of relying
   on SkillSpector's transitive pull.
 
+### Migration
+- **Callers of the reusable `skill-audit.yml` must now grant `security-events: write`** to the calling
+  job (the gate uploads its malice-layer SARIF to code scanning, as `sast` / `iac-security` already do).
+  Set `upload-sarif: false` to skip the upload, but the permission is still required by the workflow.
+
 ---
 
 ## [1.0.0] - 2026-07-08
