@@ -1,8 +1,28 @@
 # security-workflows
 
-Reusable GitHub Actions security workflows over a layered set of signed, pinned scanner
-**toolbox images** — a best-in-class aggregator of upstream security tools behind a
-hardened, fully pinned supply chain. Built to be reused across repos, and dogfooded here.
+Reusable GitHub Actions security workflows over signed, pinned scanner **toolbox images**,
+dogfooded here. What makes it more than an aggregator: it covers the one part of agent-skill
+security that no published scanner does — the **developer-execution surface**.
+
+## The differentiator: the developer-execution surface
+
+A malicious agent skill can ship a **clean `SKILL.md` that passes every skill scanner** and still
+steal your SSH keys and CI secrets the moment you run the project's tests — because the payload
+rides in a bundled `*.test.ts` or `.husky/pre-commit` that your *toolchain* auto-executes
+(`npm test`, `git commit`), entirely outside the agent.
+
+The two most rigorous studies in the field miss this surface: the static state-of-the-art
+([arXiv 2601.10338](https://arxiv.org/abs/2601.10338)) by scope — it scans "`SKILL.md` + scripts
+the skill *may invoke*"; the dynamic state-of-the-art ([arXiv 2607.02357](https://arxiv.org/abs/2607.02357))
+because it detonates the *agent*, not `npm test`. [`skill-audit.yml`](.github/workflows/skill-audit.yml)'s
+first-party **[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh)** covers exactly it —
+layered so it blocks *malice* without crying wolf on honest tests — and a **CI proof-fixture** re-proves
+the claim on every build.
+
+→ **[The Gecko-vector walkthrough](docs/gecko-vector-walkthrough.md)** · [coverage map](docs/threat-model.md) · [the proof-fixture](tests/gate-proof.sh)
+
+Everything below is the **credibility layer**: best-in-class upstream tools behind a hardened,
+digest-pinned, signed, and attested supply chain.
 
 ## Workflows
 
@@ -24,7 +44,7 @@ Runs on a schedule (weekly recommended). Checks:
 Reusable (`workflow_call`). Audits the caller's GitHub Actions workflows with the pinned `gha-toolbox` image — **zizmor** (expression/template injection, excessive permissions, unpinned actions) and **actionlint** (syntax + embedded shell via shellcheck).
 
 ### `skill-audit.yml`
-Reusable (`workflow_call`). Reviews agent skills with the pinned `skill-audit-toolbox` — **SkillSpector** (agent-execution surface: prompt injection, tool poisoning, exfiltration) plus a first-party **test-file gate** for the developer-execution surface no published skill scanner covers. See [`docs/threat-model.md`](docs/threat-model.md).
+Reusable (`workflow_call`). Reviews agent skills with the pinned `skill-audit-toolbox` — **SkillSpector** (agent-execution surface: prompt injection, tool poisoning, exfiltration) plus the first-party **`skill-testfile-gate`** for the **developer-execution surface** no published scanner covers: layered *presence* (inventory) vs. *malice* (a Semgrep rule pack that blocks and emits SARIF), across test files, git hooks, and lifecycle scripts. See the [walkthrough](docs/gecko-vector-walkthrough.md) and [threat model](docs/threat-model.md). Callers must grant `security-events: write`.
 
 ### `sast.yml`
 Reusable (`workflow_call`). Static application security testing with the pinned `sast-toolbox` (**Semgrep** OSS); emits SARIF to code scanning. Universal/portable — public *and* private repos.
@@ -56,21 +76,21 @@ jobs:
     permissions:
       contents: read
       packages: read      # pull the pinned scanner image from GHCR
-    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.0.0
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.1.0
     secrets: inherit
 
   audit:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.0.0
+    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.1.0
     secrets: inherit
 ```
 
 Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) and
 `skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`).
 
-`@v1.0.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
+`@v1.1.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
 supply-chain safety. The scanner images are published **publicly** on GHCR, so any caller
 can pull them.
@@ -80,7 +100,8 @@ Or use [garymike/repo-template](https://github.com/garymike/repo-template) when 
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — the three planes + image layer graph.
-- [`docs/adr/`](docs/adr/) — architecture decision records (0001–0009).
+- [`docs/gecko-vector-walkthrough.md`](docs/gecko-vector-walkthrough.md) — the developer-execution-surface exploit, end to end (defanged).
+- [`docs/adr/`](docs/adr/) — architecture decision records (0001–0012).
 - [`docs/threat-model.md`](docs/threat-model.md) — skill-audit coverage map + residual gaps.
 - [`docs/tool-evaluations.md`](docs/tool-evaluations.md) — tools assessed, adopted, deferred.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — local builds, the signed-commit/PR flow, and releases.
