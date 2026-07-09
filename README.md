@@ -56,21 +56,21 @@ jobs:
     permissions:
       contents: read
       packages: read      # pull the pinned scanner image from GHCR
-    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v0.3.0
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.0.0
     secrets: inherit
 
   audit:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v0.3.0
+    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.0.0
     secrets: inherit
 ```
 
 Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) and
 `skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`).
 
-`@v0.3.0` is the current release; a moving `@v0` tag tracks the latest 0.x. This repo's
+`@v1.0.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
 supply-chain safety. The scanner images are published **publicly** on GHCR, so any caller
 can pull them.
