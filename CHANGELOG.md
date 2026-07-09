@@ -6,6 +6,19 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.0.0] - 2026-07-08
+
+First **stable** release — the reusable-workflow and image interfaces are declared stable;
+consumers can pin to `@v1`. No functional change from `0.4.3`; this promotes the validated,
+CI-hardened platform to 1.0.
+
+Stable surface:
+- **Reusable workflows** (`workflow_call`): `security-scan`, `security-audit`, `gha-security`, `skill-audit`, `sast`, `codeql`, `iac-security`.
+- **Signed images**: `security-toolbox-base` → `mcp-review-toolbox`, `gha-toolbox`, `skill-audit-toolbox`, `sast-toolbox`, `iac-toolbox` (each SBOM'd, provenance-attested, Trivy-gated, cosign-signed).
+- Validated end-to-end on a real multi-language repo; CI self-enforced (blocking actionlint / zizmor / Checkov / Trivy + self-scan invoking every reusable workflow).
+
+---
+
 ## [0.4.3] - 2026-07-08
 
 ### Changed
