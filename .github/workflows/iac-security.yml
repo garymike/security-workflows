@@ -54,12 +54,13 @@ jobs:
         run: |
           set -uo pipefail
           docker pull "$IMAGE"
-          mkdir -p out
+          mkdir -p out && chmod 777 out
           rc=0
-          # SARIF to stdout, redirected on the host (avoids container-uid write perms).
-          docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
-            checkov -d "/src/$SCAN_PATH" --framework "$FRAMEWORK" --quiet --output sarif > out/checkov.sarif || rc=$?
-          sarif=false; [ -s out/checkov.sarif ] && sarif=true
+          # Checkov's stdout isn't clean SARIF (it prints a banner), so write to a file via
+          # --output-file-path. chmod 777 lets the container's unprivileged user write there.
+          docker run --rm -v "$PWD:/src:ro" -v "$PWD/out:/out" -w /src "$IMAGE" \
+            checkov -d "/src/$SCAN_PATH" --framework "$FRAMEWORK" --compact --quiet --output sarif --output-file-path /out || rc=$?
+          sarif=false; [ -s out/results_sarif.sarif ] && sarif=true
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
           echo "checkov finished (rc=$rc; non-zero = findings)"
@@ -68,7 +69,7 @@ jobs:
         if: ${{ inputs.upload-sarif && steps.checkov.outputs.sarif == 'true' }}
         uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
         with:
-          sarif_file: out/checkov.sarif
+          sarif_file: out/results_sarif.sarif
           category: checkov
 
       - name: Enforce fail-on-findings
