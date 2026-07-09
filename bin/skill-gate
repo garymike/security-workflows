@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# skill-gate — run the developer-execution-surface gate locally with whatever OCI runtime is present.
+#
+# Detects docker -> podman -> wslc (WSL Containers) and runs the pinned, signed skill-audit-toolbox
+# image against a path. No Docker Desktop required: works with `wslc` on Windows (verified — see
+# docs/local-runner.md) or docker/podman anywhere, off the *same* signed image + tools.lock as CI —
+# one cryptographic source of truth, local and remote.
+#
+# Usage: skill-gate [PATH]        (default: current directory)
+# Env:   SKILL_GATE_IMAGE         override image (default: the pinned :latest on GHCR)
+#        SKILL_GATE_RUNTIME       force runtime: docker | podman | wslc (or a full path to one)
+set -uo pipefail
+
+IMAGE="${SKILL_GATE_IMAGE:-ghcr.io/garymike/security-workflows/skill-audit-toolbox:latest}"
+TARGET="${1:-.}"
+
+# A runtime must be present AND actually functional — installed != running (e.g. podman with no
+# machine, or Docker Desktop not started). Health-check each candidate before selecting it.
+runtime_ok() {
+  case "${1##*/}" in
+    docker*|podman*) "$1" info     >/dev/null 2>&1 ;;
+    wslc*)           "$1" image ls >/dev/null 2>&1 ;;
+    *)               "$1" info     >/dev/null 2>&1 ;;
+  esac
+}
+
+# --- pick an OCI runtime: docker -> podman -> wslc (first one that actually connects) ---
+RT=""
+if [ -n "${SKILL_GATE_RUNTIME:-}" ]; then
+  RT="$SKILL_GATE_RUNTIME"                       # explicit override: trust the caller
+else
+  for c in docker podman wslc; do
+    if command -v "$c" >/dev/null 2>&1 && runtime_ok "$c"; then RT="$c"; break; fi
+  done
+  # wslc ships at C:\Program Files\WSL but isn't always on the shell PATH after install.
+  if [ -z "$RT" ] && command -v cygpath >/dev/null 2>&1; then
+    p="$(cygpath -u "${PROGRAMFILES:-C:\\Program Files}" 2>/dev/null)/WSL/wslc.exe"
+    if [ -x "$p" ] && runtime_ok "$p"; then RT="$p"; fi
+  fi
+fi
+if [ -z "$RT" ]; then
+  {
+    echo "skill-gate: no OCI runtime found (need docker, podman, or wslc)."
+    echo "  On Windows without Docker Desktop, install WSL Containers, then re-run:"
+    echo "    wsl --update --pre-release"
+    echo "  See docs/local-runner.md."
+  } >&2
+  exit 2
+fi
+
+# --- resolve the target to an absolute path ---
+abs="$(cd "$TARGET" 2>/dev/null && pwd)" || { echo "skill-gate: path not found: $TARGET" >&2; exit 2; }
+
+# --- run; translate paths for Windows runtimes when invoked from git-bash/MSYS ---
+case "$(uname -s 2>/dev/null || echo x)" in
+  MINGW*|MSYS*|CYGWIN*)
+    # Hand a Windows host path to the Windows binary, and stop MSYS rewriting the container-side /src.
+    host="$(cygpath -w "$abs" 2>/dev/null || echo "$abs")"
+    echo "skill-gate: runtime=${RT##*/}  target=$host  image=$IMAGE" >&2
+    MSYS_NO_PATHCONV=1 exec "$RT" run --rm -v "${host}:/src:ro" "$IMAGE" skill-testfile-gate /src
+    ;;
+  *)
+    echo "skill-gate: runtime=$RT  target=$abs  image=$IMAGE" >&2
+    exec "$RT" run --rm -v "${abs}:/src:ro" "$IMAGE" skill-testfile-gate /src
+    ;;
+esac

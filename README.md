@@ -107,7 +107,7 @@ machine the moment you run the tests, before anything reaches a PR. Run the gate
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/garymike/security-workflows
-    rev: v1.1.0
+    rev: v1.2.0
     hooks:
       - id: skill-testfile-gate
 ```
@@ -119,7 +119,11 @@ pull**, before you'd run its tests:
 pre-commit install --hook-type pre-commit --hook-type post-merge --hook-type post-checkout
 ```
 
-It runs the pinned, signed `skill-audit-toolbox` image (Docker required) and blocks on malice.
+It runs the pinned, signed `skill-audit-toolbox` image and blocks on malice — the **same image as
+CI**, one cryptographic source of truth. **No Docker Desktop?** The `skill-testfile-gate-any` hook
+(and [`bin/skill-gate`](bin/skill-gate)) run the identical gate via Podman or **WSL Containers
+(`wslc`)**, and the image runs **offline / air-gapped** once sideloaded — see the
+[local-runner guide](docs/local-runner.md).
 
 **Honest residual:** a git-stage hook catches a skill that arrives *through git*. It does **not**
 catch one you download outside git (curl, a marketplace installer) — that still needs

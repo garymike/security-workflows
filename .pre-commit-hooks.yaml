@@ -11,7 +11,10 @@
 #
 #   pre-commit install --hook-type pre-commit --hook-type post-merge --hook-type post-checkout
 #
-# Requires Docker; runs the pinned, signed skill-audit-toolbox image.
+# Two hooks off the same signed image:
+#   skill-testfile-gate      — pre-commit-native, runs via Docker (simplest if you have Docker).
+#   skill-testfile-gate-any  — runtime-agnostic: runs via docker / podman / WSL Containers (wslc),
+#                              so it works with NO Docker Desktop. See docs/local-runner.md.
 
 - id: skill-testfile-gate
   name: skill-testfile-gate (developer-execution surface)
@@ -21,6 +24,17 @@
     the agent, with your local permissions.
   entry: ghcr.io/garymike/security-workflows/skill-audit-toolbox:latest skill-testfile-gate
   language: docker_image
+  pass_filenames: false
+  always_run: true
+  stages: [pre-commit, post-merge, post-checkout]
+
+- id: skill-testfile-gate-any
+  name: skill-testfile-gate (any OCI runtime — Docker/Podman/WSLC)
+  description: >-
+    Same developer-execution-surface gate, but runs via whatever OCI runtime is present (Docker,
+    Podman, or WSL Containers `wslc`) — no Docker Desktop required. See docs/local-runner.md.
+  entry: bin/skill-gate
+  language: script
   pass_filenames: false
   always_run: true
   stages: [pre-commit, post-merge, post-checkout]
