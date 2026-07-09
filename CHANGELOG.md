@@ -6,11 +6,18 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [Unreleased]
+## [0.4.3] - 2026-07-08
 
 ### Changed
 - Hardened the dogfood CI: the `actionlint`, `zizmor`, and `Checkov` steps are now **blocking** (were informational — the gap that let the v0.4.0 invalid-permission bug ship), and the Trivy step is a blocking fixable-CRITICAL gate. Added `persist-credentials: false` to all checkouts.
 - `self-scan.yml` now invokes **every reusable workflow** (security-scan, gha-security, sast, iac-security, skill-audit, security-audit) against this repo on every push/PR, so their parse/runtime errors are caught in CI — not only when a downstream repo calls them.
+
+### Fixed
+- `sast.yml`: quote-safe Semgrep config (a bash array instead of an unquoted string; shellcheck SC2086, surfaced by the now-blocking actionlint).
+- `security-audit.yml`: admin-only setting reads (Actions default permissions, branch protection) now degrade gracefully under `contents: read` instead of failing the job under `bash -e` (surfaced by self-scan actually invoking the audit).
+
+### Security
+- Dropped over-broad `secrets: inherit` from `self-scan` (the reusable workflows only use the automatic `GITHUB_TOKEN`); added `persist-credentials: false` to all checkouts (zizmor `artipacked`); added a Dependabot `cooldown` so brand-new releases aren't adopted instantly (zizmor `dependabot-cooldown`).
 
 ---
 
