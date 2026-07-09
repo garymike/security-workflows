@@ -6,6 +6,34 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.1.0] - 2026-07-09
+
+### Added
+- **skill-testfile-gate v2 — the developer-execution surface, deepened.** The gate now separates
+  **presence** (an auto-executed skill file exists — low-severity inventory) from **malice** (that
+  file reads credentials, runs `curl|bash`, decode-and-execs, opens a reverse shell, writes agent
+  memory, or is obfuscated — a blocking finding), via a first-party Semgrep rule pack
+  (`toolbox/skill-audit/rules/agent-exec-surface.yml`). Legitimate bundled tests are no longer
+  false-positived. See ADRs [0010](docs/adr/0010-first-party-dev-exec-rule-pack.md)–[0012](docs/adr/0012-layered-severity-and-sarif.md).
+- **Wider scan scope** per the authoritative skill locations: recursive `**/.claude/skills/`
+  (monorepo), plugin skills, `.claude/commands/`, `.cursor`/`.agents`, symlink-following, and git
+  hooks (`.git/hooks`) — reading what other scanners are blind to.
+- **SARIF output** from the malice layer, uploaded to code scanning (`skill-audit.yml` gains
+  `upload-sarif`, default true, and `security-events: write`).
+- **CI proof-fixture** (`tests/gate-proof.sh`, wired into `dogfood-scan`): asserts the gate blocks a
+  defanged Gecko demo and clears a benign skill on every build — the differentiation, continuously proven.
+
+### Changed
+- `skill-audit-toolbox` now pins **Semgrep** explicitly (the gate's malice engine) instead of relying
+  on SkillSpector's transitive pull.
+
+### Migration
+- **Callers of the reusable `skill-audit.yml` must now grant `security-events: write`** to the calling
+  job (the gate uploads its malice-layer SARIF to code scanning, as `sast` / `iac-security` already do).
+  Set `upload-sarif: false` to skip the upload, but the permission is still required by the workflow.
+
+---
+
 ## [1.0.0] - 2026-07-08
 
 First **stable** release — the reusable-workflow and image interfaces are declared stable;

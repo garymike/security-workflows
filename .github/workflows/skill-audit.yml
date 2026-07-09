@@ -22,6 +22,10 @@ on:
         description: 'Fail on the test-file gate (developer-execution surface)'
         type: boolean
         default: true
+      upload-sarif:
+        description: 'Upload the test-file gate malice-layer SARIF to GitHub code scanning'
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -32,7 +36,8 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      packages: read   # pull the pinned scanner image from GHCR
+      packages: read           # pull the pinned scanner image from GHCR
+      security-events: write   # upload the test-file gate SARIF to code scanning
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
         with:
@@ -45,6 +50,7 @@ jobs:
         run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
       - name: Audit skills
+        id: audit
         env:
           IMAGE: ghcr.io/garymike/security-workflows/skill-audit-toolbox:latest
           SCAN_PATH: ${{ inputs.path }}
@@ -53,15 +59,25 @@ jobs:
         run: |
           set -uo pipefail
           docker pull "$IMAGE"
+          mkdir -p out && chmod 777 out   # container (uid toolbox) writes the gate SARIF here
           rc=0
           echo "::group::test-file gate (developer-execution surface)"
-          if ! docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" skill-testfile-gate "/src/$SCAN_PATH"; then
+          if ! docker run --rm -v "$PWD:/src:ro" -v "$PWD/out:/out" -e GATE_SARIF=/out/gate.sarif -w /src "$IMAGE" skill-testfile-gate "/src/$SCAN_PATH"; then
             if [ "$GATE_FAIL" = "true" ]; then rc=1; else echo "::warning::test-file gate found issues (gate-fail-on-findings=false)"; fi
           fi
           echo "::endgroup::"
+          sarif=false; [ -s out/gate.sarif ] && sarif=true
+          echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
           echo "::group::SkillSpector (static, --no-llm)"
           if ! docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" skillspector scan "/src/$SCAN_PATH" --no-llm; then
             if [ "$FAIL" = "true" ]; then rc=1; else echo "::warning::SkillSpector reported findings (fail-on-findings=false)"; fi
           fi
           echo "::endgroup::"
           exit "$rc"
+
+      - name: Upload test-file gate SARIF to code scanning
+        if: ${{ always() && inputs.upload-sarif && steps.audit.outputs.sarif == 'true' }}
+        uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
+        with:
+          sarif_file: out/gate.sarif
+          category: skill-testfile-gate

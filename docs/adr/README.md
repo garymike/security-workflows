@@ -14,3 +14,6 @@ Format: [Michael Nygard's ADRs](https://cognitect.com/blog/2011/11/15/documentin
 | [0007](0007-stride-in-ci-deferred.md) | STRIDE-in-CI deferred | Deferred |
 | [0008](0008-versioning.md) | Versioning: semver + moving major + SHA | Accepted |
 | [0009](0009-solo-branch-protection.md) | Solo-maintainer branch protection | Accepted |
+| [0010](0010-first-party-dev-exec-rule-pack.md) | First-party rule pack for the developer-execution surface | Accepted |
+| [0011](0011-developer-execution-surface-boundary.md) | The developer-execution surface boundary | Accepted |
+| [0012](0012-layered-severity-and-sarif.md) | Layered presence/malice severity + SARIF | Accepted |
