@@ -6,6 +6,31 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.2.0] - 2026-07-09
+
+### Added
+- **Local runner — the gate on any OCI runtime, no Docker Desktop required.** A new wrapper
+  [`bin/skill-gate`](bin/skill-gate) auto-selects the first *functional* runtime
+  (`docker` → `podman` → **WSL Containers `wslc`**), health-checking each (installed ≠ running), and
+  translates Windows paths from git-bash automatically. It runs the **same signed
+  `skill-audit-toolbox` image** as CI — one cryptographic source of truth, local and remote.
+- **Second pre-commit hook `skill-testfile-gate-any`** (`language: script`, `entry: bin/skill-gate`)
+  alongside the existing Docker-native `skill-testfile-gate` — same gate, runtime-agnostic, so the
+  developer-execution vector can be caught locally on machines where Docker Desktop is blocked.
+- **[docs/local-runner.md](docs/local-runner.md)** — the wrapper, the two hooks, a **manually
+  verified** `wslc` command + environment, offline / air-gapped sideload (`wslc save`/`import`),
+  the `virtiofs` ~2× file-perf note, enterprise GPO registry-allowlist alignment, and a deferred
+  "beyond containers" QEMU note (Mac/Linux parity + VM-isolation for the Tier-2 dynamic sandbox).
+
+### Notes
+- WSLC is a **public preview** (GA planned fall 2026). The local `wslc` path is **verified manually**
+  (Windows 11 build 26200.8737, WSL/wslc 2.9.3, no Docker) but **not exercised in CI** — the
+  continuously-enforced guarantees remain the Docker path (`tests/gate-proof.sh`). `docker compose`
+  is not yet supported by `wslc`, so the compose-based `security-agents` flavors stay on Docker; this
+  track is the single-container **gate** only. No breaking changes; no new caller permissions.
+
+---
+
 ## [1.1.0] - 2026-07-09
 
 ### Added
