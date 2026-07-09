@@ -20,6 +20,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          persist-credentials: false
 
       - name: Build base image (validates toolbox/base/Dockerfile)
         run: docker build -t security-toolbox-base:ci ./toolbox/base
@@ -46,12 +48,10 @@ jobs:
       - name: gha-toolbox self-test (tool versions)
         run: docker run --rm gha-toolbox:ci
 
-      - name: GHA lint (actionlint) — informational
-        continue-on-error: true
+      - name: GHA lint (actionlint) — blocking
         run: docker run --rm -v "$PWD:/src:ro" -w /src gha-toolbox:ci actionlint -color
 
-      - name: GHA security audit (zizmor, offline) — informational
-        continue-on-error: true
+      - name: GHA security audit (zizmor, offline) — blocking
         run: docker run --rm -v "$PWD:/src:ro" -w /src gha-toolbox:ci zizmor --offline .
 
       - name: Build skill-audit-toolbox on the local base (validates toolbox/skill-audit/Dockerfile)
@@ -64,13 +64,13 @@ jobs:
         continue-on-error: true
         run: docker run --rm -v "$PWD:/src:ro" -w /src skill-audit-toolbox:ci skill-testfile-gate /src
 
-      - name: Image CVE scan (Trivy on the base) — informational
-        continue-on-error: true
+      - name: Image CVE scan (Trivy on the base) — blocking (fixable CRITICAL)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
           image-ref: security-toolbox-base:ci
-          severity: CRITICAL,HIGH
+          severity: CRITICAL
           ignore-unfixed: true
+          exit-code: '1'
 
       - name: Build sast-toolbox on the local base (validates toolbox/sast/Dockerfile)
         run: docker build --build-arg BASE=security-toolbox-base:ci -t sast-toolbox:ci ./toolbox/sast
@@ -88,8 +88,7 @@ jobs:
       - name: iac-toolbox self-test (tool version)
         run: docker run --rm iac-toolbox:ci
 
-      - name: IaC scan (Checkov) on this repo — informational
-        continue-on-error: true
+      - name: IaC scan (Checkov) on this repo — blocking
         run: docker run --rm -v "$PWD:/src:ro" -w /src iac-toolbox:ci checkov -d /src --compact --quiet
 
       - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

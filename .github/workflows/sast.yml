@@ -56,12 +56,13 @@ jobs:
           set -uo pipefail
           docker pull "$IMAGE"
           mkdir -p out
-          cfg=""
-          for c in $CONFIG; do cfg="$cfg --config $c"; done
+          read -ra packs <<< "$CONFIG"
+          cfg=()
+          for c in "${packs[@]}"; do cfg+=(--config "$c"); done
           rc=0
           # SARIF to stdout, redirected on the host (avoids container-uid write perms).
           docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" \
-            semgrep scan $cfg "/src/$SCAN_PATH" --sarif --metrics=off > out/semgrep.sarif || rc=$?
+            semgrep scan "${cfg[@]}" "/src/$SCAN_PATH" --sarif --metrics=off > out/semgrep.sarif || rc=$?
           sarif=false; [ -s out/semgrep.sarif ] && sarif=true
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "sarif=$sarif" >> "$GITHUB_OUTPUT"

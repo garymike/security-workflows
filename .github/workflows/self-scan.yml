@@ -1,8 +1,12 @@
 name: Self scan
 
-# Dogfoods our own reusable security-scan.yml against this repo, so that changes to
-# the reusable workflow (and the pinned-image path) are validated here on every
-# push/PR — not only when a downstream repo happens to call it.
+# Dogfoods our own REUSABLE workflows against this repo, so that changes to them (parse
+# errors, invalid permissions, runtime failures) are caught here on every push/PR — the
+# gap that let the v0.4.0/v0.4.1 bugs ship. CodeQL is omitted (this repo has no
+# CodeQL-supported languages). These pull the last-published images; the dogfood job builds
+# and blocking-lints the images and workflows themselves.
+#
+# No `secrets: inherit` — the reusable workflows only use the automatic GITHUB_TOKEN.
 
 on:
   push:
@@ -12,11 +16,43 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 jobs:
   security-scan:
+    permissions:
+      contents: read
+      packages: read
     uses: ./.github/workflows/security-scan.yml
     with:
       fail-on-findings: true
-    secrets: inherit
+
+  gha-security:
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/gha-security.yml
+
+  sast:
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: ./.github/workflows/sast.yml
+
+  iac-security:
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: ./.github/workflows/iac-security.yml
+
+  skill-audit:
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/skill-audit.yml
+
+  security-audit:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/security-audit.yml

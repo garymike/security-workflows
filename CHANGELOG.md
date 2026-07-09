@@ -6,6 +6,14 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- Hardened the dogfood CI: the `actionlint`, `zizmor`, and `Checkov` steps are now **blocking** (were informational — the gap that let the v0.4.0 invalid-permission bug ship), and the Trivy step is a blocking fixable-CRITICAL gate. Added `persist-credentials: false` to all checkouts.
+- `self-scan.yml` now invokes **every reusable workflow** (security-scan, gha-security, sast, iac-security, skill-audit, security-audit) against this repo on every push/PR, so their parse/runtime errors are caught in CI — not only when a downstream repo calls them.
+
+---
+
 ## [0.4.2] - 2026-07-08
 
 ### Fixed
