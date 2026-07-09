@@ -6,6 +6,13 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [0.4.2] - 2026-07-08
+
+### Fixed
+- `iac-security.yml`: Checkov's stdout is not clean SARIF (it prints a banner), so the uploaded SARIF was invalid JSON ("Unexpected token '_'"). Now writes SARIF via `--output-file-path` to a world-writable mounted dir. (Found by validating on a real consumer repo; Semgrep/CodeQL SARIF upload were already confirmed working there.)
+
+---
+
 ## [0.4.1] - 2026-07-08
 
 ### Fixed
