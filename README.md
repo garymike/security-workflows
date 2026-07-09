@@ -97,6 +97,35 @@ can pull them.
 
 Or use [garymike/repo-template](https://github.com/garymike/repo-template) when creating new repos — it ships with this pre-wired.
 
+## Shift-left: catch it before `npm test`
+
+CI is often too late for the developer-execution vector — a malicious skill detonates on your
+machine the moment you run the tests, before anything reaches a PR. Run the gate locally as a
+[pre-commit](https://pre-commit.com) hook:
+
+```yaml
+# .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/garymike/security-workflows
+    rev: v1.1.0
+    hooks:
+      - id: skill-testfile-gate
+```
+
+Install it on the stages that matter — at commit, and (crucially) **when a skill arrives via a
+pull**, before you'd run its tests:
+
+```bash
+pre-commit install --hook-type pre-commit --hook-type post-merge --hook-type post-checkout
+```
+
+It runs the pinned, signed `skill-audit-toolbox` image (Docker required) and blocks on malice.
+
+**Honest residual:** a git-stage hook catches a skill that arrives *through git*. It does **not**
+catch one you download outside git (curl, a marketplace installer) — that still needs
+review-before-install and excluding `.claude`/`.cursor`/`.agents` from your test-runner globs
+(see the [threat model](docs/threat-model.md)). We close the git-borne path and document the rest.
+
 ## Documentation
 
 - [`docs/architecture.md`](docs/architecture.md) — the three planes + image layer graph.
