@@ -2,6 +2,7 @@
 
 The load-bearing decisions behind `security-workflows`, in the order they were made.
 Format: [Michael Nygard's ADRs](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions.html).
+Research and incident sources cited in these ADRs have full citations in [`../references.md`](../references.md).
 
 | # | Decision | Status |
 |---|---|---|

@@ -96,6 +96,8 @@ If the differentiator ever regresses, the build goes red.
 
 ## Sources
 
+Full citations with URLs: [`docs/references.md`](references.md).
+
 - Gecko Security / VentureBeat — the bundled test-file vector (the developer-execution surface).
 - *Agent Skills in the Wild*, arXiv 2601.10338 — SkillScan; 26.1% of skills vulnerable; scope excludes the surface.
 - *Cloak and Detonate*, arXiv 2607.02357 — SkillCloak (>90% static bypass) + SkillDetonate (agent-path dynamic auditing).

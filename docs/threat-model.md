@@ -66,6 +66,8 @@ so a skill that merely ships honest tests is not false-positived; only one that 
 
 ## Sources
 
+Full citations — arXiv IDs, URLs, and what each is cited for — live in [`docs/references.md`](references.md).
+
 - *Agent Skills in the Wild: An Empirical Study of Security Vulnerabilities at Scale*,
   arXiv 2601.10338 (SkillScan; ~26% vulnerable; static + LLM detection).
 - Snyk, **ToxicSkills** — first audit of the ClawHub / skills.sh marketplaces.

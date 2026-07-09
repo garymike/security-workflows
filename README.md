@@ -103,6 +103,7 @@ Or use [garymike/repo-template](https://github.com/garymike/repo-template) when 
 - [`docs/gecko-vector-walkthrough.md`](docs/gecko-vector-walkthrough.md) — the developer-execution-surface exploit, end to end (defanged).
 - [`docs/adr/`](docs/adr/) — architecture decision records (0001–0012).
 - [`docs/threat-model.md`](docs/threat-model.md) — skill-audit coverage map + residual gaps.
+- [`docs/references.md`](docs/references.md) — canonical bibliography for the research + incidents cited.
 - [`docs/tool-evaluations.md`](docs/tool-evaluations.md) — tools assessed, adopted, deferred.
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — local builds, the signed-commit/PR flow, and releases.
 
