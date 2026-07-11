@@ -64,33 +64,43 @@ commit SHA for maximum safety — see [ADR-0008](docs/adr/0008-versioning.md)):
 name: Security
 
 on:
+  # Scan pushes to the default branch + every PR. Feature-branch pushes are
+  # already covered by their PR, so scanning every branch push too
+  # (branches: ["**"]) double-bills Actions minutes on private repos. Public
+  # repos have free Actions and may broaden to branches: ["**"] if they want
+  # direct-push coverage on branches that never open a PR.
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   schedule:
     - cron: '0 8 * * 1'
   workflow_dispatch:
+
+# Cancel superseded runs on the same ref (rapid pushes / PR updates).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   scan:
     permissions:
       contents: read
       packages: read      # pull the pinned scanner image from GHCR
-    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.1.0
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.3.0
     secrets: inherit
 
   audit:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.1.0
+    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.3.0
     secrets: inherit
 ```
 
 Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) and
 `skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`).
 
-`@v1.1.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
+`@v1.3.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
 supply-chain safety. The scanner images are published **publicly** on GHCR, so any caller
 can pull them.

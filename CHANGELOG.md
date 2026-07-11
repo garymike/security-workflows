@@ -6,6 +6,32 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.3.0] - 2026-07-11
+
+### Changed
+- **`security-scan.yml` reusable: three parallel jobs collapsed into one.** The former
+  `secrets` (betterleaks), `action-pinning`, and `security-md` jobs each billed a
+  1-minute floor and re-ran `checkout` on every caller — ~3 billable minutes for seconds
+  of work. They are now sequential steps in a single `scan` job (~1 billable minute), a
+  ~66% cut per call for private-repo consumers. The advisory checks (action-pinning,
+  SECURITY.md) run **before** the secret scan so they still emit even when a secret
+  finding fails the job. No input/output changes; `packages: read` is still required (the
+  betterleaks image is pulled from GHCR).
+- **`self-scan.yml`: added `concurrency` with `cancel-in-progress`** so superseded dogfood
+  runs cancel on rapid pushes.
+
+### Docs
+- **README usage example** now recommends `push: branches: [main]` + `pull_request`
+  (instead of `branches: ["**"]`, which double-bills feature-branch pushes already covered
+  by their PR), adds the `concurrency` block, and pins to `@v1.3.0`. A note explains public
+  repos may broaden to `["**"]` since their Actions are free.
+
+### Notes
+- The check-run names visible to callers change from three named checks to a single
+  "Security scan". This affects only consumers who pinned branch-protection required-status
+  checks to the old names (none do here — see [ADR-0009](docs/adr/0009-solo-branch-protection.md)),
+  so it is released as a minor, not a major.
+
 ## [1.2.0] - 2026-07-09
 
 ### Added
