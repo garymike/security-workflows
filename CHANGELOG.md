@@ -6,6 +6,23 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.3.1] - 2026-07-11
+
+### Changed
+- **Corrected the skill-gate differentiator from "no scanner sees it" to "no scanner *gates* on it."**
+  SkillSpector v2.3+ now scans bundled `.husky/` and `package.json` files and *reports* the developer-execution
+  payload (a HIGH credential-access finding) — but it exits 0 (no fail-on mode), so a CI pipeline gating on exit
+  codes still lets the skill through. `skill-testfile-gate` remains the purpose-built **enforcing** gate: it fails
+  the build (exit 1) where advisory scanners do not, and the research state-of-the-art still excludes the surface
+  by scope (arXiv 2601.10338 / 2607.02357). Re-framed the README, the Gecko walkthrough, the fixture comments, and
+  the Dockerfile accordingly.
+- **`tests/gate-proof.sh` #4 now asserts on behavior, not exit code.** The old assertion read SkillSpector's exit
+  code (0) and mislabeled it "clears" — but SkillSpector reports findings and exits 0 regardless. #4 now proves the
+  honest claim: the gate exits nonzero (enforces) while SkillSpector exits 0 (advises). A false-green proof made
+  true.
+
+---
+
 ## [1.3.0] - 2026-07-11
 
 ### Changed

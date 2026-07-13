@@ -5,11 +5,13 @@
 #   1 (BLOCK)   gate MUST block gecko-demo — the test-file vector (malice in a *.test.ts).
 #   2 (BLOCK)   gate MUST block gecko-hook-demo — the git-hook vector (malice in .husky/pre-commit).
 #   3 (CLEAR)   gate MUST NOT block benign-skill (presence != malice — a legit bundled test is not a finding).
-#   4 (DIFFER)  HARD: the gate blocks gecko-hook-demo while SkillSpector CLEARS it (SkillSpector does not
-#               inspect .husky/). That is the crisp proof — a vector *neither* the static nor dynamic SOTA
-#               (arXiv 2601.10338 / 2607.02357) covers. If a scanner ever starts inspecting .husky/, this
-#               fails loudly so the demo can be revisited. SkillSpector's verdict on gecko-demo (the
-#               test-file vector, which it scans as generic code) is only observed.
+#   4 (ENFORCE) HARD: the gate FAILS the build on gecko-hook-demo (exit!=0) while SkillSpector exits 0.
+#               SkillSpector v2.3+ DOES report the payload (a HIGH credential-access finding) — it is not
+#               blind — but it has no fail-on mode, so it never gates: a CI pipeline that trusts exit codes
+#               would let this skill through with SkillSpector alone. The gate is a purpose-built *enforcing*
+#               gate for this surface. (The research SOTA still excludes the surface by scope — arXiv
+#               2601.10338 scans SKILL.md + invoked scripts; 2607.02357 detonates the agent path, not
+#               `npm test`.) If SkillSpector ever grows a fail-on/gating mode, #4 fails loudly to revisit this.
 #
 # Usage: bash tests/gate-proof.sh [IMAGE]     (default: skill-audit-toolbox:ci)
 set -uo pipefail
@@ -31,15 +33,19 @@ echo "== 3. gate MUST NOT block the benign skill =="
 if gate benign-skill; then echo "  PASS: not blocked (presence != malice)"; else echo "  FAIL: false positive"; fail=1; fi
 
 echo ""
-echo "== 4. differentiation (HARD): the gate blocks a vector SkillSpector clears =="
-if ss gecko-hook-demo; then
-  echo "  PASS: SkillSpector CLEARS gecko-hook-demo while the gate blocks it -> neither SOTA covers this surface."
+echo "== 4. enforce vs advise (HARD): the gate FAILS the build where SkillSpector does not =="
+# The gate must exit nonzero (enforce) on the git-hook vector.
+if gate gecko-hook-demo >/dev/null 2>&1; then gate_enforces=0; else gate_enforces=1; fi
+# SkillSpector must exit 0 (advise) — it reports the payload but has no fail-on mode, so an exit-code CI gate
+# would NOT stop this skill. That gap is exactly what the gate closes.
+if ss gecko-hook-demo; then ss_gates=0; else ss_gates=1; fi
+if [ "$gate_enforces" -eq 1 ] && [ "$ss_gates" -eq 0 ]; then
+  echo "  PASS: the gate exits nonzero (fails CI/pre-commit) while SkillSpector exits 0 (advisory, no fail-on)."
+  echo "        An exit-code CI gate would let this skill through with SkillSpector alone; the gate blocks it."
 else
-  echo "  FAIL: SkillSpector flagged gecko-hook-demo, so the clean 'SkillSpector-passes / gate-blocks' claim no"
-  echo "        longer holds (a scanner started inspecting .husky/). Revisit the demo."; fail=1
+  echo "  FAIL: expected gate-enforces (exit!=0) + SkillSpector-advisory (exit 0); got gate=$gate_enforces ss=$ss_gates."
+  echo "        If SkillSpector now gates (exit!=0), the enforce-vs-advise framing needs revisiting."; fail=1
 fi
-# gecko-demo (test-file): SkillSpector scans .ts as generic code, so it flags this one — observed, not asserted.
-if ss gecko-demo; then echo "  OBSERVED: SkillSpector cleared gecko-demo."; else echo "  OBSERVED: SkillSpector flagged gecko-demo (scans the bundled .test.ts as generic code)."; fi
 
 echo ""
 if [ "$fail" -eq 0 ]; then echo "PROOF-FIXTURE PASSED — the gate covers the developer-execution surface (both test-file and git-hook vectors)."; else echo "PROOF-FIXTURE FAILED"; fi

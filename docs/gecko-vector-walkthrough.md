@@ -1,12 +1,13 @@
-# The Gecko vector: a skill that passes every scanner and still owns your laptop
+# The Gecko vector: a skill scanners flag but don't *stop*
 
-> **The claim, in one sentence:** an agent skill can carry a clean `SKILL.md` that passes every
-> published skill scanner — and still steal your SSH keys and CI secrets the moment you run the
-> project's tests, because the payload rides in a file the *developer's* toolchain executes, not
-> the agent's.
+> **The claim, in one sentence:** an agent skill can hide a credential-stealer in a bundled test file or git
+> hook — a file your *toolchain* runs on `npm test` / `git commit`, outside the agent — that skill scanners
+> only *report* (they flag it, but exit 0 and never fail the build) and the research state-of-the-art misses
+> by scope. `skill-testfile-gate` is the gate that *stops* it.
 
-This is the surface `skill-testfile-gate` exists to cover, and — per the two most rigorous studies
-in the field — the one surface *neither the static nor the dynamic state-of-the-art touches*. This
+This is the surface `skill-testfile-gate` exists to *gate*. Skill scanners are starting to *see* it but don't
+*stop* it (they advise, exit 0); and — per the two most rigorous studies in the field — it is the one surface
+*neither the static nor the dynamic research state-of-the-art touches*, by scope. This
 walkthrough is defanged: the payloads below (and the runnable fixtures in
 [`tests/fixtures/`](../tests/fixtures/)) read a canary and POST to `localhost`, never a real host.
 It is a threat demonstration with its mitigation, not a kit.
@@ -16,16 +17,15 @@ It is a threat demonstration with its mitigation, not a kit.
 | Surface | Who executes it | What inspects it |
 |---|---|---|
 | **Agent-execution** — `SKILL.md`, agent-invoked scripts, tool definitions | the *agent*, at use time | SkillSpector, and every published skill scanner |
-| **Developer-execution** — `*.test.ts`, `conftest.py`, npm `postinstall`, **git hooks**, `.pth` | the *developer's* toolchain — `vitest`/`pytest`, `npm install`, `git commit` — **no agent involved** | *(nothing, until this gate)* |
+| **Developer-execution** — `*.test.ts`, `conftest.py`, npm `postinstall`, **git hooks**, `.pth` | the *developer's* toolchain — `vitest`/`pytest`, `npm install`, `git commit` — **no agent involved** | scanners *report* it (SkillSpector v2.3+ flags a `.husky/` payload HIGH) but **none fail the build**; research SOTA excludes it by scope — this gate enforces |
 
-Every scanner inspects the first. The attack lives in the second.
+Every scanner *gates* on the first. On the second they advise at most — this gate is the first to *fail the build*.
 
 ## 2. The attack, step by step (defanged)
 
 **Step 1 — a benign-looking skill.** A `code-reviewer` skill. Its `SKILL.md` is honest prose: "summarize
-the diff, flag TODOs." No prompt injection, no `curl | bash`, no agent-invoked script. SkillSpector — which
-scans the agent-execution surface for prompt injection, tool poisoning, data exfiltration, and excessive
-agency — has nothing to flag. **It passes.**
+the diff, flag TODOs." No prompt injection, no `curl | bash`, no agent-invoked script — the `SKILL.md` itself is
+clean, so an agent-surface read of it finds nothing. **The payload isn't in the `SKILL.md`.**
 
 **Step 2 — the payload rides in a test file.** Bundled alongside is `reviewer.test.ts`
 ([fixture](../tests/fixtures/gecko-demo/reviewer.test.ts)). Its `beforeAll` hook — defanged here — does what
@@ -43,13 +43,13 @@ beforeAll(async () => {
 *whole directory* in) and runs `npm test`. Vitest auto-discovers `*.test.ts` and runs `beforeAll` **before a
 single assertion** — as the developer, with full local permissions, with the agent nowhere in the loop. The
 SSH key and every CI secret in `process.env` leave the building. A fake skill using adjacent techniques
-reportedly reached ~26,000 agents while passing every scanner.
+reportedly reached ~26,000 agents.
 
 **Step 4 — the same trick, a stealthier carrier.** The payload need not be a test file. A husky
 `.husky/pre-commit` hook ([fixture](../tests/fixtures/gecko-hook-demo/.husky/pre-commit)) fires on `git
-commit`. This one is *cleaner* for the attacker: SkillSpector inspects the skill's `SKILL.md` and
-agent-invoked scripts, and **does not inspect `.husky/` at all** — so the skill passes the scanner with a
-live credential-stealer sitting in a git hook.
+commit`. SkillSpector v2.3+ *does* scan `.husky/` now and flags this as a HIGH credential-access finding — but
+it **exits 0** (no fail-on mode), so a CI pipeline gating on exit codes still lets the skill through. The
+scanner *reports*; it does not *stop*.
 
 ## 3. Why the state-of-the-art misses it — both halves
 
@@ -66,8 +66,9 @@ live credential-stealer sitting in a git hook.
   fires on `npm test` / `git commit` — a path the agent-driven detonation never drives. Its own documented
   limits (the "natural-language coverage gap," anti-sandbox evasion) are all agent-path limits.
 
-**So the developer-execution surface is orthogonal to both.** That is the whole novelty — provable from the
-papers' own scope statements, not asserted.
+**So the developer-execution surface is orthogonal to both research approaches** — provable from the papers'
+own scope statements. And the practical scanner that *does* see it (SkillSpector) only advises (exit 0). The
+gate's role is to **enforce** on this surface — fail the build, in CI and pre-commit.
 
 ## 4. The mitigation: `skill-testfile-gate`
 
@@ -90,9 +91,10 @@ Defense-in-depth beyond the gate stays the same: pin skills to a commit and revi
 ## 5. Continuously verified
 
 None of this is a slide. [`tests/gate-proof.sh`](../tests/gate-proof.sh) runs on every build ([dogfood-scan](../.github/workflows/dogfood-scan.yml))
-and asserts, against the freshly built image: the gate **blocks** both the test-file and the git-hook demo,
-**clears** a benign skill (so legit tests aren't false-positived), and reports SkillSpector's verdict on each.
-If the differentiator ever regresses, the build goes red.
+and asserts, against the freshly built image: the gate **blocks** (exit 1, fails the build) both the test-file
+and the git-hook demo, **clears** a benign skill (so legit tests aren't false-positived), and — the honest core —
+proves the gate **fails the build where SkillSpector exits 0** (enforce vs advise). If that gap ever closes or
+the gate regresses, the build goes red.
 
 ## Sources
 
