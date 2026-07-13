@@ -3,9 +3,9 @@
 #
 # skill-audit-toolbox — Anthropic Skill / agent-capability security review, layered on
 # the signed base.
-#   = base + SkillSpector (agent-execution surface: prompt injection, tool poisoning,
-#     data exfil, excessive agency) + a first-party test-file gate for the DEVELOPER-
-#     execution surface that no published skill scanner covers.
+#   = base + SkillSpector (agent-skill scanner: prompt injection, tool poisoning, data exfil,
+#     excessive agency — advisory, exits 0) + a first-party test-file GATE for the DEVELOPER-
+#     execution surface: it fails the build (exit 1) where advisory scanners do not.
 # STATIC ANALYSIS ONLY. See docs/threat-model.md for the coverage map + residual gaps.
 #
 # BASE is pinned by digest in CI. SkillSpector ships no PyPI release or tags, so it is

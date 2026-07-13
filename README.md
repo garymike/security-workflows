@@ -1,23 +1,26 @@
 # security-workflows
 
 Reusable GitHub Actions security workflows over signed, pinned scanner **toolbox images**,
-dogfooded here. What makes it more than an aggregator: it covers the one part of agent-skill
-security that no published scanner does — the **developer-execution surface**.
+dogfooded here. What makes it more than an aggregator: it turns the one part of agent-skill
+security that scanners only *advise* on — the **developer-execution surface** — into an enforcing
+CI/pre-commit **gate**.
 
-## The differentiator: the developer-execution surface
+## The differentiator: an enforcing gate for the developer-execution surface
 
-A malicious agent skill can ship a **clean `SKILL.md` that passes every skill scanner** and still
-steal your SSH keys and CI secrets the moment you run the project's tests — because the payload
-rides in a bundled `*.test.ts` or `.husky/pre-commit` that your *toolchain* auto-executes
-(`npm test`, `git commit`), entirely outside the agent.
+A malicious agent skill can ship a **clean `SKILL.md`** and still steal your SSH keys and CI secrets the
+moment you run the project's tests — because the payload rides in a bundled `*.test.ts` or `.husky/pre-commit`
+that your *toolchain* auto-executes (`npm test`, `git commit`), entirely outside the agent.
 
-The two most rigorous studies in the field miss this surface: the static state-of-the-art
-([arXiv 2601.10338](https://arxiv.org/abs/2601.10338)) by scope — it scans "`SKILL.md` + scripts
-the skill *may invoke*"; the dynamic state-of-the-art ([arXiv 2607.02357](https://arxiv.org/abs/2607.02357))
-because it detonates the *agent*, not `npm test`. [`skill-audit.yml`](.github/workflows/skill-audit.yml)'s
-first-party **[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh)** covers exactly it —
-layered so it blocks *malice* without crying wolf on honest tests — and a **CI proof-fixture** re-proves
-the claim on every build.
+Scanners are catching up to *seeing* this surface, but they don't **stop** it. SkillSpector (v2.3+) reports a
+`.husky/` payload as a HIGH finding — yet it has no fail-on mode, so it **exits 0**, and a CI pipeline gating on
+exit codes lets the skill through. And the research state-of-the-art misses the surface *by scope*: the static
+SOTA ([arXiv 2601.10338](https://arxiv.org/abs/2601.10338)) scans "`SKILL.md` + scripts the skill *may invoke*";
+the dynamic SOTA ([arXiv 2607.02357](https://arxiv.org/abs/2607.02357)) detonates the *agent*, not `npm test`.
+[`skill-audit.yml`](.github/workflows/skill-audit.yml)'s first-party
+**[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh)** is the purpose-built *enforcing* gate for
+exactly this surface — it **fails the build** (exit 1) on malice, layered so it doesn't cry wolf on honest tests,
+emits SARIF, and runs as a pre-commit hook — and a **CI proof-fixture** re-proves the enforce-vs-advise gap on
+every build.
 
 → **[The Gecko-vector walkthrough](docs/gecko-vector-walkthrough.md)** · [coverage map](docs/threat-model.md) · [the proof-fixture](tests/gate-proof.sh)
 
