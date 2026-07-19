@@ -18,24 +18,32 @@ malicious (SkillScan / *Agent Skills in the Wild*, arXiv 2601.10338; Snyk **Toxi
 
 ## The two execution surfaces
 
-The critical insight is that a skill package touches **two** execution surfaces, and
-every published scanner inspects only the first:
+The critical insight is that a skill package touches **two** execution surfaces. Skill scanners inspect the
+first natively; the second they at most *report* on — they don't *gate* on it (SkillSpector v2.3+ flags a
+`.husky/` payload but exits 0), and the research SOTA excludes it by scope:
 
 | Surface | What runs it | What we run | Residual gap |
 |---|---|---|---|
 | **Agent-execution** — `SKILL.md`, agent-invoked scripts, tool definitions | the agent, at use time | **SkillSpector** (prompt injection, tool poisoning, data exfil, excessive agency, AST/taint/YARA) | evadable by novel packing / obfuscation (see below) |
-| **Developer-execution** — `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, **npm lifecycle scripts**, **git hooks**, `.pth`/`sitecustomize` — anything auto-run without the developer choosing to run *that file* ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain — test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git — on install/CI, **no agent involved** | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) + a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). The surface *no* published scanner covers. | evadable by an adaptive author → WARNING findings **escalate to a sandboxed Tier-2 run**; surface file list stays heuristic |
+| **Developer-execution** — `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, **npm lifecycle scripts**, **git hooks**, **agent config-injection** (`.claude/settings.json` Hooks + `.mcp.json` — CVE-2025-59536, *scoped*), `.pth`/`sitecustomize` — anything auto-run without the developer choosing to run *that file* ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain — test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git — on install/CI, **no agent involved** | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) + a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). The surface skill scanners only *advise* on (SkillSpector v2.3+ reports it, exits 0); the gate *enforces* (exit 1). | evadable by an adaptive author → WARNING findings **escalate to a sandboxed Tier-2 run**; surface file list stays heuristic |
 | **Time-of-use** — a skill that points the agent at an external URL fetched *after* review | the network, later | *(not a scanning problem)* | **answered by commit-pinning**, not by scanning |
 
 The developer-execution row is this repo's original contribution. Gecko Security (2026)
 demonstrated that a skill with a clean `SKILL.md` can bundle a `reviewer.test.ts` whose
 `beforeAll` block reads `~/.ssh`, `~/.aws/credentials`, and CI env secrets and exfiltrates
 them — executing through the test runner with full local permissions, entirely outside
-the agent. A fake skill using adjacent techniques reportedly reached ~26,000 agents while
-passing every scanner. `skill-testfile-gate` flags exactly these files — and, since v2, it
-separates **presence** (an auto-run file exists — a low-severity inventory signal) from
-**malice** (that file reads `~/.ssh` and exfiltrates inside `beforeAll` — a blocking finding),
+the agent. A fake skill using adjacent techniques reportedly reached ~26,000 agents. `skill-testfile-gate` flags exactly
+these files — and, since v2, it separates **presence** (an auto-run file exists — a low-severity inventory
+signal) from **malice** (that file reads `~/.ssh` and exfiltrates inside `beforeAll` — a blocking finding),
 so a skill that merely ships honest tests is not false-positived; only one that weaponises them.
+
+**The surface extends to agent config-injection.** Check Point's **CVE-2025-59536** (CVSS **8.7**, [ConfigInjection])
+showed a repo's own `.claude/settings.json` **Hooks** and `.mcp.json` **MCP** definitions auto-executing shell on
+*clone/open* of an untrusted project — Claude Code's *own* config as the auto-run carrier, RCE without consent.
+Their framing — *"the risk now extends to opening untrusted projects"* — is precisely this surface, CVE-backed.
+**Scoped for the gate (roadmap, not yet in the malice pack):** extend it to `.claude/settings.json` hooks,
+`.mcp.json` server commands, and repo env-injection. The CVEs are patched upstream; the gate is defense-in-depth
+for the *class* — a pre-open scan of auto-executing repo config, valuable regardless of any single vendor patch.
 
 ## Residual gaps we deliberately do NOT claim to catch
 
@@ -74,4 +82,5 @@ Full citations — arXiv IDs, URLs, and what each is cited for — live in [`doc
 - Gecko Security — the bundled **test-file** vector (developer-execution surface).
 - *SkillCloak* — self-extracting packing that evades static skill scanners.
 - OWASP **Agentic Skills Top 10** — pin-to-commit / verify-on-every-change guidance.
-- NVIDIA **SkillSpector** — the agent-execution-surface scanner this image wraps.
+- NVIDIA **SkillSpector** — the skill scanner this image wraps (advisory: reports findings, exits 0).
+- Check Point **[ConfigInjection]** — CVE-2025-59536 / CVE-2026-21852: `.claude` Hooks + MCP config-injection on *open*.

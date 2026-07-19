@@ -6,6 +6,19 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.3.2] - 2026-07-13
+
+### Docs
+- **Captured CVE-2025-59536 (Check Point config-injection, CVSS 8.7) + CVE-2026-21852** in `docs/references.md`
+  ([ConfigInjection]) and **scoped the agent config-injection surface** in `docs/threat-model.md` — a repo's own
+  `.claude/settings.json` Hooks + `.mcp.json` MCP config auto-executing shell on *clone/open* is a CVE-backed
+  instance of the developer-execution surface, applied to the agent's own config ("the risk now extends to opening
+  untrusted projects"). Gate coverage of these config files is on the roadmap (not yet in the malice pack).
+
+### Changed
+- **`docs/threat-model.md`: corrected the SkillSpector overclaims fixed in 1.3.1** (this doc was missed then) —
+  "the surface no published scanner covers" → "scanners advise; the gate enforces (exit 1)."
+
 ## [1.3.1] - 2026-07-11
 
 ### Changed
