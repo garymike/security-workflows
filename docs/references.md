@@ -43,6 +43,19 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
   <https://securitylabs.datadoghq.com/articles/malicious-skills-supply-chain-risks-in-coding-agents-with-dynamic-context/>
   — a cloned repo introduces skills without explicit install (motivates git-stage hooks); eBPF runtime monitoring.
 
+- **[ConfigInjection]** Check Point Research (A. Donenfeld, O. Vanunu) — *Critical Claude Code flaws:
+  configuration injection via Hooks & MCP.*
+  <https://blog.checkpoint.com/research/check-point-researchers-expose-critical-claude-code-flaws/> · coverage:
+  <https://thehackernews.com/2026/02/claude-code-flaws-allow-remote-code.html> · secondary:
+  <https://devops.com/security-flaws-in-anthropics-claude-code-risk-stolen-data-system-takeover/> —
+  **CVE-2025-59536** (CVSS **8.7**): a repo's own `.claude` config — **Hooks** and **MCP integrations** —
+  auto-executes shell commands on *clone/open* of an untrusted project, overriding the approval prompts (RCE, no
+  consent). **CVE-2026-21852** (5.3): repo-controlled config → API-key/token exfiltration. **We cite it for:** the
+  developer-execution surface extending to **agent config-injection** — Check Point's framing, *"the risk now
+  extends to opening untrusted projects,"* is a CVE-backed validation + expansion of exactly the surface the gate
+  covers. Patched upstream (Anthropic, late-2025/early-2026); the gate is **defense-in-depth for the class**, a
+  pre-open scan of auto-executing repo config.
+
 - **[ClawHavoc]** Koi Security — *ClawHavoc: 341 malicious skills.*
   <https://www.koi.ai/blog/clawhavoc-341-malicious-clawedbot-skills-found-by-the-bot-they-were-targeting>
   — dependency-impersonation campaign exfiltrating browser creds, keychain, SSH keys, crypto wallets.
@@ -51,8 +64,9 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
 
 ## Tools & standards
 
-- **[SkillSpector]** NVIDIA — the agent-execution-surface scanner this project pairs the gate with.
-  <https://github.com/NVIDIA/SkillSpector>
+- **[SkillSpector]** NVIDIA — the skill scanner this project pairs the gate with. Advisory: it scans the bundled
+  surface (incl. `.husky/` in v2.3+) and *reports* findings, but has no fail-on mode and exits 0 — the gate
+  *enforces* (exit 1) where it advises. <https://github.com/NVIDIA/SkillSpector>
 - **Semgrep** (OSS) — the engine the developer-execution rule pack reuses. <https://semgrep.dev>
 - **OWASP** — Agentic Skills Top 10 / MCP Top 10 / MCP Security Cheat Sheet. <https://genai.owasp.org> ·
   <https://owasp.org/www-project-mcp-top-10>
