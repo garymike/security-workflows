@@ -9,9 +9,12 @@ re-checks it on every build. New threats become new profiles; the platform thesi
 | [Developer-execution surface](developer-execution.md) | Gecko Security (2026); arXiv 2601.10338, 2607.02357 | Covered, enforced | `skill-testfile-gate` |
 | [Config-injection](config-injection.md) | CVE-2025-59536 (Check Point) | Covered, enforced | `skill-testfile-gate` |
 | [Memory-file poisoning](memory-poisoning.md) | Snyk ToxicSkills | Covered, enforced | `skill-testfile-gate` |
+| [Sibling-ecosystem config](sibling-config-surface.md) | CVE-2025-54136 (Cursor); microsoft/vscode #309406 | Covered, enforced | `skill-testfile-gate` |
 
 Roadmap (the material exists, the profile is pending): scanner evasion and packing (SkillCloak,
 arXiv 2607.02357), an acknowledged residual rather than something the static gate blocks outright
 (WARNING findings escalate to a sandboxed run instead). Full citations live in
 [`../references.md`](../references.md); the runtime-side profiles (MCP tool poisoning, egress
 exfiltration) live in the [security-agents](https://github.com/garymike/security-agents) catalog.
+direnv's `.envrc` was researched and found already mitigated by its own `direnv allow` consent gate;
+see [ADR-0014](../adr/0014-sibling-ecosystem-config-surface.md) for why it is intentionally excluded.

@@ -83,15 +83,18 @@ while IFS= read -r f; do
   grep -qE '"(pre|post)?install"[[:space:]]*:|"prepare"[[:space:]]*:|"prepublish(Only)?"[[:space:]]*:' "$f" 2>/dev/null \
     && raw+=("$f")
 done < <(find -L "${roots[@]}" \( "${PRUNE[@]}" \) -prune -o -type f -name 'package.json' -print 2>/dev/null)
-# config-injection surface — the agent's OWN auto-run config (CVE-2025-59536). Claude Code Hooks,
-# repo-declared MCP servers, and hook scripts auto-run on clone/open. These live at the repo root and
-# under .claude/, so scan $TARGET + any .claude dirs, not only skill roots.
-# [EXTENSION POINT] add sibling-ecosystem globs here (.cursor/, .vscode/settings.json, .envrc) later.
+# config-injection surface: agent config that auto-runs on clone/open (CVE-2025-59536 and the same
+# class in sibling ecosystems). Claude Code Hooks, repo-declared MCP servers, and hook scripts. These
+# live at the repo root and under .claude/.cursor/.vscode, so scan $TARGET, not only skill roots.
+# [EXTENSION POINT] add the next ecosystem's glob here once its auto-run behavior is confirmed viable
+# (see docs/adr/0014-sibling-ecosystem-config-surface.md for the viability bar and what was excluded).
 while IFS= read -r f; do raw+=("$f"); done < <(
   find -L "$TARGET" \( "${PRUNE[@]}" \) -prune -o -type f \( \
       -path '*/.claude/settings.json' -o -path '*/.claude/settings.local.json' \
       -o -name '.mcp.json' -o -name '.claude.json' \
       -o -path '*/.claude/hooks/*' \
+      -o -path '*/.cursor/mcp.json' -o -path '*/.cursor/hooks.json' \
+      -o -path '*/.vscode/tasks.json' \
     \) -print 2>/dev/null)
 
 candidates=()
@@ -105,10 +108,10 @@ for f in "${candidates[@]}"; do warn "[inventory] auto-executed skill file prese
 cfgn=0
 for f in "${candidates[@]}"; do
   case "$f" in
-    */.claude/settings.json|*/.claude/settings.local.json|*/.mcp.json|*/.claude.json|*/.claude/hooks/*) cfgn=$((cfgn + 1));;
+    */.claude/settings.json|*/.claude/settings.local.json|*/.mcp.json|*/.claude.json|*/.claude/hooks/*|*/.cursor/mcp.json|*/.cursor/hooks.json|*/.vscode/tasks.json) cfgn=$((cfgn + 1));;
   esac
 done
-[ "$cfgn" -gt 0 ] && note "skill-testfile-gate: ${cfgn} of these are auto-executing agent config (Hooks / MCP) that run on repo open (CVE-2025-59536 surface); review before trusting."
+[ "$cfgn" -gt 0 ] && note "skill-testfile-gate: ${cfgn} of these are auto-executing agent config (Hooks / MCP / tasks) that run on repo open (the CVE-2025-59536 class); review before trusting."
 
 # --- 3. Malice layer ---
 malice=0; suspicious=0
