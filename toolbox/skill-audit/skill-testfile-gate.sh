@@ -123,7 +123,7 @@ done < <(grep -lP '[\x{200B}-\x{200F}\x{202A}-\x{202E}\x{2060}-\x{2064}\x{FEFF}]
 # 3b. Semgrep rule pack over the candidate files (scope IS the signal). We read severity from
 #     Semgrep's native JSON (extra.severity: ERROR/WARNING/INFO) — reliable, unlike the SARIF
 #     result.level, which Semgrep does not always populate — and emit SARIF separately for upload.
-if command -v semgrep >/dev/null 2>&1 && [ -f "$RULES" ]; then
+if command -v semgrep >/dev/null 2>&1 && [ -e "$RULES" ]; then
   json="$(mktemp)"
   semgrep scan --config "$RULES" --json --output "$json" --metrics=off --quiet \
     --disable-version-check "${candidates[@]}" >/dev/null 2>&1 || true
