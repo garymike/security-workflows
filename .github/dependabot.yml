@@ -24,6 +24,15 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # Hold Python at 3.12. yara-python (pulled in by SkillSpector) has no wheel
+      # for 3.13 or 3.14 yet, and the slim image ships no C toolchain to build it
+      # from source, so a minor or major bump breaks the skill-audit image build.
+      # Patch updates (3.12.x) still flow. Revisit when a wheel lands upstream.
+      - dependency-name: "python"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
 
   # gha-toolbox's downloader stage also pins the python base image.
   - package-ecosystem: docker
@@ -32,3 +41,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    ignore:
+      # Keep the gha downloader stage on the same Python as the base image (3.12)
+      # so the whole toolbox builds on one runtime. Patch updates still flow.
+      - dependency-name: "python"
+        update-types:
+          - version-update:semver-minor
+          - version-update:semver-major
