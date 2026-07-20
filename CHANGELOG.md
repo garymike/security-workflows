@@ -6,6 +6,16 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.1] - 2026-07-20
+
+### Changed
+- **`ai-review.yml` polish.** Surface a `findings-count` workflow output so a caller can gate on the
+  result (fail when it is greater than zero); pass through the `false-positive-filtering-instructions`
+  and `claudecode-timeout` inputs; drop the unused `security-events: write` permission (the wrapped
+  action is a composite that comments on PRs and uploads artifacts, verified from its `action.yml` at
+  the pinned SHA, so it does not write to code scanning); and note the `/security-review` Claude Code
+  slash command. Header comments plainened. Still linted, not run, in CI (needs a paid key).
+
 ## [1.5.0] - 2026-07-19
 
 ### Added

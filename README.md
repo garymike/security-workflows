@@ -85,6 +85,11 @@ opt-in: it needs a `claude-api-key` secret (per-run cost) and, per Anthropic, is
 against prompt injection, so require approval for external contributors. See
 [tool-evaluations](docs/tool-evaluations.md).
 
+It exposes a `findings-count` output so a calling job can gate on the result (for example, fail when
+it is greater than zero), and passes through the model, excluded directories, review timeout, and
+custom scan and false-positive-filtering instructions. The same engine is also available inside Claude
+Code as the `/security-review` slash command.
+
 ### `iac-security.yml`
 Reusable (`workflow_call`). Infrastructure-as-Code and misconfiguration scanning with the pinned
 `iac-toolbox` (Checkov): Terraform, Dockerfiles, Kubernetes, Helm, and CloudFormation; emits
