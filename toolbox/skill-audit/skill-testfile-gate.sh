@@ -32,7 +32,7 @@
 set -uo pipefail
 
 TARGET="${1:-.}"
-RULES="${GATE_RULES:-/usr/local/share/skill-audit/agent-exec-surface.yml}"
+RULES="${GATE_RULES:-/usr/local/share/skill-audit}"
 SARIF_OUT="${GATE_SARIF:-}"
 FAIL_ON_MALICE="${GATE_FAIL_ON_MALICE:-true}"
 FAIL_ON_INVENTORY="${GATE_FAIL_ON_INVENTORY:-false}"
@@ -83,6 +83,16 @@ while IFS= read -r f; do
   grep -qE '"(pre|post)?install"[[:space:]]*:|"prepare"[[:space:]]*:|"prepublish(Only)?"[[:space:]]*:' "$f" 2>/dev/null \
     && raw+=("$f")
 done < <(find -L "${roots[@]}" \( "${PRUNE[@]}" \) -prune -o -type f -name 'package.json' -print 2>/dev/null)
+# config-injection surface — the agent's OWN auto-run config (CVE-2025-59536). Claude Code Hooks,
+# repo-declared MCP servers, and hook scripts auto-run on clone/open. These live at the repo root and
+# under .claude/, so scan $TARGET + any .claude dirs, not only skill roots.
+# [EXTENSION POINT] add sibling-ecosystem globs here (.cursor/, .vscode/settings.json, .envrc) later.
+while IFS= read -r f; do raw+=("$f"); done < <(
+  find -L "$TARGET" \( "${PRUNE[@]}" \) -prune -o -type f \( \
+      -path '*/.claude/settings.json' -o -path '*/.claude/settings.local.json' \
+      -o -name '.mcp.json' -o -name '.claude.json' \
+      -o -path '*/.claude/hooks/*' \
+    \) -print 2>/dev/null)
 
 candidates=()
 for f in "${raw[@]:-}"; do [ -n "$f" ] && ! excluded "$f" && candidates+=("$f"); done
@@ -92,6 +102,13 @@ mapfile -t candidates < <(printf '%s\n' "${candidates[@]}" | sort -u)
 n=${#candidates[@]}
 note "skill-testfile-gate: ${n} developer-execution-surface file(s) present (inventory layer)."
 for f in "${candidates[@]}"; do warn "[inventory] auto-executed skill file present (review before install): $f"; done
+cfgn=0
+for f in "${candidates[@]}"; do
+  case "$f" in
+    */.claude/settings.json|*/.claude/settings.local.json|*/.mcp.json|*/.claude.json|*/.claude/hooks/*) cfgn=$((cfgn + 1));;
+  esac
+done
+[ "$cfgn" -gt 0 ] && note "skill-testfile-gate: ${cfgn} of these are auto-executing agent config (Hooks / MCP) that run on repo open (CVE-2025-59536 surface); review before trusting."
 
 # --- 3. Malice layer ---
 malice=0; suspicious=0
