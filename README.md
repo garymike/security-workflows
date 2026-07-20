@@ -1,40 +1,49 @@
 # security-workflows
 
-Reusable GitHub Actions security workflows that run over signed, pinned scanner toolbox
-images, dogfooded in this repo. It is more than an aggregator in one respect: it takes the
-part of agent-skill security that scanners only warn about, the developer-execution surface,
-and turns it into a CI and pre-commit gate that fails the build.
+Reusable GitHub Actions security workflows over signed, pinned scanner toolbox images,
+dogfooded in this repo.
 
-## An enforcing gate for the developer-execution surface
+It is the static layer of a small security platform with one throughline: most AI-native
+security tooling stops at advice (it scans, reports, and exits 0), and this platform turns that
+advice into a control that blocks. Here, at build time, auto-run repo artifacts (a skill's test
+files and git hooks, and the agent's own `.claude` and `.mcp.json` config) are scanned and the
+build fails on malice. At runtime, in [security-agents](https://github.com/garymike/security-agents),
+an MCP server review is compiled into a firewall policy that blocks unapproved egress and tool
+calls. The reviews come from the methodology skills in
+[garymike/skills](https://github.com/garymike/skills). Assess in the skills, enforce here and in
+security-agents.
 
-A malicious agent skill can ship a clean `SKILL.md` and still steal your SSH keys and CI
-secrets the moment you run the project's tests. The payload rides in a bundled `*.test.ts` or
-`.husky/pre-commit` file that your toolchain runs on its own (`npm test`, `git commit`), with
-the agent never involved.
+How it is built is part of the point: adopt best-in-class tools where they exist (pinned and
+signed, never forked), build first-party only where the field has a real gap, and keep it modular
+(engine-neutral contracts, swappable adapters, composable workflows) so a new tool slots in
+without moving the story.
 
-Scanners are starting to see this surface, but seeing it is not stopping it. SkillSpector
-(v2.3 and later) reports a `.husky/` payload as a HIGH finding, yet it has no fail-on mode and
-exits 0, so a CI pipeline that gates on exit codes still lets the skill through. The research
-misses the surface by scope: the static state of the art
-([arXiv 2601.10338](https://arxiv.org/abs/2601.10338)) scans "`SKILL.md` plus the scripts the
-skill may invoke", and the dynamic state of the art
-([arXiv 2607.02357](https://arxiv.org/abs/2607.02357)) detonates the agent, not `npm test`.
-The first-party [`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) in
-[`skill-audit.yml`](.github/workflows/skill-audit.yml) is built for this surface. It fails the
-build (exit 1) on malice, is layered so it does not fire on honest test files, emits SARIF, and
-runs as a pre-commit hook. A CI proof-fixture re-checks the enforce-versus-advise gap on every
-build.
+## Where this is ahead of the field
 
-The same enforcing gate now covers the agent's own auto-run config: a repo's `.claude/settings.json`
-Hooks, `.mcp.json` MCP server commands, and `.claude/hooks/` scripts that run on clone or open (the
-CVE-2025-59536 config-injection surface). Presence is inventory; a hostile hook or an injected
-code-execution environment variable blocks, and a package-runner MCP launch is flagged for review.
+A malicious agent skill can ship a clean `SKILL.md` and still steal your SSH keys the moment you
+run the project's tests, because the payload rides in a bundled test file or git hook that your
+toolchain auto-runs, outside the agent. Scanners see it and exit 0. The first-party
+[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build instead. The
+same gate now covers the agent's own auto-run config (`.claude/settings.json` Hooks, `.mcp.json`
+servers), the CVE-2025-59536 config-injection surface. The runtime pillar, an MCP review compiled
+into a firewall, is the assess-to-enforce gateway in
+[security-agents](https://github.com/garymike/security-agents).
 
-Read next: [the Gecko-vector walkthrough](docs/gecko-vector-walkthrough.md), the
-[coverage map](docs/threat-model.md), and [the proof-fixture](tests/gate-proof.sh).
+Each of these is a worked example with a runnable defanged demo and the CI proof that re-checks it
+on every build. See the **[threat profiles](docs/threats/)**.
 
-Everything below is the supporting layer: established upstream tools behind a digest-pinned,
-signed, and attested supply chain.
+## What's adopted, what's first-party
+
+The split is deliberate and worth being explicit about.
+
+| | What | Why |
+|---|---|---|
+| **Adopted** (best-in-class, pinned and signed) | Semgrep, CodeQL, Checkov, betterleaks, trufflehog, SkillSpector, Anthropic's AI review, plus pipelock and OPA in security-agents | Do not reinvent a solved problem. Each is pinned by digest or SHA, SBOM'd, and cosign-signed. |
+| **First-party** (only where the field has a gap) | the enforcing gate for the developer-execution and config-injection surface (this repo); the assess-to-enforce compiler and engine-neutral policy contract (security-agents) | Build where the field only advises. |
+| **Modular** (the mechanism) | the `mcp-runtime-policy` contract with swappable adapters, layered signed images, composable reusable workflows | So the two rows above can evolve while the story does not. |
+
+Everything below is that supporting layer: the adopted tools behind a digest-pinned, signed, and
+attested supply chain.
 
 ## Workflows
 
@@ -185,6 +194,7 @@ documents the rest.
 
 ## Documentation
 
+- [`docs/threats/`](docs/threats/): the proving ground, one profile per real attack (threat, defanged demo, defense, and CI proof).
 - [`docs/architecture.md`](docs/architecture.md): the three planes plus the image-layer graph.
 - [`docs/gecko-vector-walkthrough.md`](docs/gecko-vector-walkthrough.md): the developer-execution-surface exploit, end to end (defanged).
 - [`docs/adr/`](docs/adr/): architecture decision records (0001 to 0013).
