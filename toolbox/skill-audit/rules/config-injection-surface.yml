@@ -1,4 +1,4 @@
-# config-injection-surface — first-party Semgrep rules for the agent CONFIG-injection surface.
+# config-injection-surface: first-party Semgrep rules for the agent CONFIG-injection surface.
 #
 # skill-testfile-gate runs these (with agent-exec-surface.yml) ONLY over files it has identified as
 # auto-run agent config (.claude/settings.json, .mcp.json/.claude.json, .claude/hooks/*). Scope is the

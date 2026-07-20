@@ -1,9 +1,9 @@
-# agent-exec-surface — first-party Semgrep rules for the DEVELOPER-execution surface.
+# agent-exec-surface: first-party Semgrep rules for the DEVELOPER-execution surface.
 #
 # skill-testfile-gate runs these ONLY over files it has already identified as auto-executed
 # by the developer's toolchain (test files, lifecycle scripts, git hooks, config) inside an
 # agent workspace. So a match means "an auto-run file does something hostile", not merely
-# "some code somewhere does X" — the scope is the signal.
+# "some code somewhere does X", the scope is the signal.
 #
 # Severity contract (see docs/adr/0012):
 #   ERROR   = malice → the gate BLOCKS. Near-zero legitimate reason for an auto-run skill file.
@@ -66,7 +66,7 @@ rules:
     severity: ERROR
     message: >-
       Auto-executed skill file writes to agent memory/config (MEMORY.md, SOUL.md, AGENTS.md,
-      .claude/, .cursor/) — cross-session persistence / instruction poisoning (Snyk ToxicSkills).
+      .claude/, .cursor/), cross-session persistence and instruction poisoning (Snyk ToxicSkills).
     metadata: { category: security, surface: developer-execution }
     patterns:
       - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|fs\.write|open\s*\([^\n)]*[\x22\x27]a?w|>>?\s*)[^\n]{0,60}(MEMORY\.md|SOUL\.md|AGENTS\.md|\.claude/|\.cursor/)'
@@ -106,7 +106,7 @@ rules:
     languages: [generic]
     severity: WARNING
     message: >-
-      Enumerates environment variables in an auto-executed skill file — in CI, process.env / os.environ
+      Enumerates environment variables in an auto-executed skill file. In CI, process.env / os.environ
       hold deployment tokens and cloud credentials (E2 env-harvesting).
     metadata: { category: security, surface: developer-execution }
     patterns:
