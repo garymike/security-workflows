@@ -67,6 +67,13 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
 - **[SkillSpector]** NVIDIA — the skill scanner this project pairs the gate with. Advisory: it scans the bundled
   surface (incl. `.husky/` in v2.3+) and *reports* findings, but has no fail-on mode and exits 0 — the gate
   *enforces* (exit 1) where it advises. <https://github.com/NVIDIA/SkillSpector>
+- **[ClaudeReview]** Anthropic — *claude-code-security-review*: official AI-powered PR security review (Claude reads
+  the diff for injection/authz/crypto/RCE/business-logic flaws; a second LLM pass filters false positives).
+  <https://github.com/anthropics/claude-code-security-review> ·
+  <https://www.anthropic.com/news/automate-security-reviews-with-claude-code> — **We adopt it as** the optional
+  **AI-semantic review layer** (`ai-review.yml`), complementary to the static aggregation and the skill/MCP gates
+  (it reviews *code diffs*, not the developer-execution / MCP surfaces). Caveats: needs a Claude API key (cost);
+  per Anthropic it is *not hardened against prompt injection*.
 - **Semgrep** (OSS) — the engine the developer-execution rule pack reuses. <https://semgrep.dev>
 - **OWASP** — Agentic Skills Top 10 / MCP Top 10 / MCP Security Cheat Sheet. <https://genai.owasp.org> ·
   <https://owasp.org/www-project-mcp-top-10>
