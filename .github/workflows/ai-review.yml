@@ -1,0 +1,67 @@
+name: AI security review (reusable)
+
+# Optional AI-SEMANTIC pull-request review — the LLM layer that complements the static toolbox
+# (Semgrep/CodeQL/Checkov/secrets) and the skill/MCP gates. It wraps the official
+# anthropics/claude-code-security-review action: Claude reads the diff for injection / authz / crypto /
+# RCE / business-logic flaws, with a second LLM pass to filter false positives, and comments inline.
+#
+# ADOPT, don't rebuild (ADR-0004): Anthropic maintains the review engine; we pin it and expose it as one
+# reusable workflow beside the others. See docs/tool-evaluations.md and docs/references.md [ClaudeReview].
+#
+# OPT-IN, and two honest caveats (documented, not hidden):
+#   1. It needs a **Claude API key** (Claude API + Claude Code usage) — a per-run cost. Pass it as a secret.
+#   2. Per Anthropic, the reviewer is **not hardened against prompt injection** — a malicious PR can try to
+#      manipulate the reviewing model. Enable "Require approval for all external contributors" on the repo.
+# Because it needs a paid key, this workflow is NOT part of the dogfood self-scan; it is linted, not run, in CI.
+
+on:
+  workflow_call:
+    inputs:
+      claude-model:
+        description: 'Claude model for the review'
+        type: string
+        default: 'claude-opus-4-1-20250805'
+      comment-pr:
+        description: 'Post findings as inline PR comments'
+        type: boolean
+        default: true
+      exclude-directories:
+        description: 'Comma-separated directories to skip (e.g. node_modules,vendor)'
+        type: string
+        default: ''
+      custom-security-scan-instructions:
+        description: 'Path to a file with org-specific review instructions (optional)'
+        type: string
+        default: ''
+    secrets:
+      claude-api-key:
+        description: 'Claude API key (Claude API + Claude Code usage enabled)'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  ai-review:
+    name: AI security review (Claude)
+    # Only meaningful on a pull request — it reviews the diff.
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write     # post inline findings
+      security-events: write   # upload results to code scanning
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 2         # the reviewer diffs HEAD against its parent
+          persist-credentials: false
+
+      - name: Claude security review
+        uses: anthropics/claude-code-security-review@0c6a49f1fa56a1d472575da86a94dbc1edb78eda # main @ 2026-02-11
+        with:
+          claude-api-key: ${{ secrets.claude-api-key }}
+          claude-model: ${{ inputs.claude-model }}
+          comment-pr: ${{ inputs.comment-pr }}
+          exclude-directories: ${{ inputs.exclude-directories }}
+          custom-security-scan-instructions: ${{ inputs.custom-security-scan-instructions }}

@@ -6,6 +6,18 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.4.0] - 2026-07-13
+
+### Added
+- **`ai-review.yml` — an optional AI-semantic PR review layer.** A thin reusable workflow wrapping the official
+  [anthropics/claude-code-security-review](https://github.com/anthropics/claude-code-security-review) action
+  (SHA-pinned): Claude reviews the PR diff for injection/authz/crypto/RCE/business-logic flaws, with an LLM
+  false-positive pass. The **AI-semantic layer** complementing the static toolbox (Semgrep/CodeQL/Checkov) and
+  the skill/MCP gates — adopt-don't-rebuild (ADR-0004): Anthropic maintains the engine, we pin + expose it.
+  **Opt-in:** needs a `claude-api-key` secret (per-run cost) and, per Anthropic, is *not hardened against prompt
+  injection* (require external-contributor approval). Not part of the dogfood self-scan (needs a paid key) —
+  linted, not run, in CI. Recorded in `docs/tool-evaluations.md` + `docs/references.md` ([ClaudeReview]).
+
 ## [1.3.2] - 2026-07-13
 
 ### Docs

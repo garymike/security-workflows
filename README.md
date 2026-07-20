@@ -55,6 +55,9 @@ Reusable (`workflow_call`). Static application security testing with the pinned 
 ### `codeql.yml`
 Reusable (`workflow_call`). Deep whole-program SAST via **CodeQL** — the complementary engine for public repos. Most public repos are better served by GitHub's code-scanning **default setup**; use this for centralized/advanced setup across repos.
 
+### `ai-review.yml`
+Reusable (`workflow_call`), **optional AI-semantic layer**. Wraps the official **[anthropics/claude-code-security-review](https://github.com/anthropics/claude-code-security-review)** action — Claude reviews the PR *diff* for injection/authz/crypto/RCE/business-logic flaws (with an LLM false-positive pass), complementing the *static* engines above. Adopt-don't-rebuild: Anthropic maintains the engine; we pin it by SHA. **Opt-in:** needs a `claude-api-key` secret (per-run cost) and, per Anthropic, is **not hardened against prompt injection** — require approval for external contributors. See [tool-evaluations](docs/tool-evaluations.md).
+
 ### `iac-security.yml`
 Reusable (`workflow_call`). Infrastructure-as-Code / misconfiguration scanning with the pinned `iac-toolbox` (**Checkov**) — Terraform, Dockerfiles, K8s, Helm, CloudFormation; emits SARIF to code scanning.
 
@@ -100,8 +103,9 @@ jobs:
     secrets: inherit
 ```
 
-Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint) and
-`skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`).
+Optional extra audits (same pinning): `gha-security.yml` (zizmor + actionlint),
+`skill-audit.yml` (SkillSpector + test-file gate; needs `packages: read`), and `ai-review.yml`
+(AI-semantic PR review via Claude; needs a `claude-api-key` secret).
 
 `@v1.3.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a **commit SHA** for maximum
