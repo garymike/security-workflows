@@ -11,7 +11,7 @@ still fit?
 
 ## Decision
 `security-workflows` keeps its name and is the **scanning / CI / toolbox platform**. It
-*scans* skills and MCP servers; it does not *host* authored skills — those stay in
+scans skills and MCP servers but does not host authored skills; those stay in
 `garymike/skills` and point at these toolboxes as an optional fast path. Renaming a
 public repo would break every `uses:` reference and the GHCR image paths for marginal
 gain; reposition in the README instead.

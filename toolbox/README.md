@@ -1,19 +1,19 @@
 # Toolbox images
 
-A layered set of pinned, cosign-signed container images bundling the **static** security
+A layered set of pinned, cosign-signed container images bundling the static security
 scanners this repo runs. Use them via `docker run …` locally, in any CI, through the
-reusable workflows, or via the `toolbox-scan` composite action — so the scanners never have
+reusable workflows, or via the `toolbox-scan` composite action, so the scanners never have
 to be installed on an analyst's machine, and every run uses the same pinned versions.
 
 **Static analysis only.** Reading files, definitions, and dependencies is safe to run
-anywhere. Dynamic analysis — actually running an untrusted MCP server or skill, or
-intercepting its traffic — is deliberately *not* here; it stays in the caller's own
+anywhere. Dynamic analysis (actually running an untrusted MCP server or skill, or
+intercepting its traffic) is deliberately not here; it stays in the caller's own
 isolated sandbox and is never centralized.
 
 ## Image layers
 
 A shared, separately-published base carries the generic scanners; each domain image builds
-`FROM` it, pinned by **digest**, and adds only what is domain-specific:
+`FROM` it, pinned by digest, and adds only what is domain-specific:
 
 ```
 security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (generic spine)
@@ -108,9 +108,9 @@ Or in a workflow, via the reusable workflows (`security-scan`, `gha-security`,
   runs `scripts/check-tool-updates.sh`, which warns when a pinned tool has a newer upstream
   release.
 - `dogfood-scan.yml` builds the whole stack from source and runs it against this repo on
-  every push/PR — the toolbox proves itself on our own code.
+  every push/PR, so the toolbox proves itself on our own code.
 
-## Hardening TODO (v0 → v1)
+## Hardening TODO (v0 to v1)
 
 The current build verifies Go binaries against each release's *own* published checksums
 (integrity, reproducible-by-version). The next step is to record out-of-band binary SHA-256
@@ -120,6 +120,6 @@ release's own checksums file.
 ## Relationship to the mcp-security-review skill
 
 The `mcp-security-review` skill stays tool-agnostic. `mcp-review-toolbox` is the
-fully-provisioned *fast path* at the top of its tool-availability ladder — the skill points
+fully-provisioned fast path at the top of its tool-availability ladder; the skill points
 to it as an option but never depends on it, and falls back to manual equivalents when it
 isn't available.
