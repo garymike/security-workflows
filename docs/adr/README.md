@@ -18,3 +18,4 @@ Research and incident sources cited in these ADRs have full citations in [`../re
 | [0010](0010-first-party-dev-exec-rule-pack.md) | First-party rule pack for the developer-execution surface | Accepted |
 | [0011](0011-developer-execution-surface-boundary.md) | The developer-execution surface boundary | Accepted |
 | [0012](0012-layered-severity-and-sarif.md) | Layered presence/malice severity + SARIF | Accepted |
+| [0013](0013-config-injection-surface.md) | Config-injection: developer-execution boundary extended to agent config | Accepted |

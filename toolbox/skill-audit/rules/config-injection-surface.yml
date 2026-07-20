@@ -1,0 +1,40 @@
+# config-injection-surface — first-party Semgrep rules for the agent CONFIG-injection surface.
+#
+# skill-testfile-gate runs these (with agent-exec-surface.yml) ONLY over files it has identified as
+# auto-run agent config (.claude/settings.json, .mcp.json/.claude.json, .claude/hooks/*). Scope is the
+# signal: a match means the agent's own config does something hostile on clone/open (CVE-2025-59536).
+#
+# Severity contract (docs/adr/0012, 0013):
+#   ERROR   = malice, the gate BLOCKS.
+#   WARNING = suspicious, reported + a candidate to escalate to the Tier-2 sandbox.
+
+rules:
+  - id: config-env-injection-exec-var
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      Agent config injects a code-execution environment variable (LD_PRELOAD / LD_AUDIT / BASH_ENV /
+      PYTHONSTARTUP / PERL5OPT / GIT_SSH_COMMAND / PROMPT_COMMAND, or NODE_OPTIONS with --require/--import).
+      On clone or open these auto-run code with the developer's permissions. This is the CVE-2025-59536
+      config-injection vector applied to the agent's own config.
+    metadata:
+      category: security
+      surface: developer-execution
+      subsurface: config-injection
+      cve: CVE-2025-59536
+    patterns:
+      - pattern-regex: '(?i)"(LD_PRELOAD|LD_AUDIT|BASH_ENV|PYTHONSTARTUP|PERL5OPT|GIT_SSH_COMMAND|PROMPT_COMMAND)"\s*:|"NODE_OPTIONS"\s*:\s*"[^"]*--(require|import)\b'
+
+  - id: config-mcp-package-runner
+    languages: [generic]
+    severity: WARNING
+    message: >-
+      MCP server command is a package runner that fetches and runs remote code on repo open
+      (npx / npm exec / uvx / pnpm dlx / bunx / pipx run). Standard but unverifiable: review and pin the
+      package, or escalate to a sandboxed run if the repo is untrusted.
+    metadata:
+      category: security
+      surface: developer-execution
+      subsurface: config-injection
+    patterns:
+      - pattern-regex: '(?i)"command"\s*:\s*"(npx|uvx|bunx)"|"command"\s*:\s*"(npm|pnpm|yarn)"[\s\S]{0,80}"(exec|dlx)"|"command"\s*:\s*"pipx"[\s\S]{0,60}"run"'

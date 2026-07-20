@@ -25,7 +25,7 @@ payload but exits 0), and the research state of the art excludes it by scope:
 | Surface | What runs it | What we run | Residual gap |
 |---|---|---|---|
 | **Agent-execution**: `SKILL.md`, agent-invoked scripts, tool definitions | the agent, at use time | **SkillSpector** (prompt injection, tool poisoning, data exfil, excessive agency, AST/taint/YARA) | evadable by novel packing or obfuscation (see below) |
-| **Developer-execution**: `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, npm lifecycle scripts, git hooks, agent config-injection (`.claude/settings.json` Hooks + `.mcp.json`, CVE-2025-59536, scoped), `.pth`/`sitecustomize`. Anything auto-run without the developer choosing to run that file ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain: test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git, on install or CI, no agent involved | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) plus a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). Skill scanners only advise on this surface (SkillSpector v2.3+ reports it, exits 0); the gate enforces (exit 1). | evadable by an adaptive author, so WARNING findings **escalate to a sandboxed Tier-2 run**; the surface file list stays heuristic |
+| **Developer-execution**: `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, npm lifecycle scripts, git hooks, agent config-injection (`.claude/settings.json` Hooks + `.mcp.json` server commands + `.claude/hooks/*`, CVE-2025-59536), `.pth`/`sitecustomize`. Anything auto-run without the developer choosing to run that file ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain: test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git, on install or CI, no agent involved | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) plus a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). Skill scanners only advise on this surface (SkillSpector v2.3+ reports it, exits 0); the gate enforces (exit 1). | evadable by an adaptive author, so WARNING findings **escalate to a sandboxed Tier-2 run**; the surface file list stays heuristic |
 | **Time-of-use**: a skill that points the agent at an external URL fetched after review | the network, later | not a scanning problem | answered by commit-pinning, not by scanning |
 
 The developer-execution row is this repo's original contribution. Gecko Security (2026)
@@ -42,11 +42,13 @@ The surface extends to agent config-injection. Check Point's CVE-2025-59536 (CVS
 [ConfigInjection]) showed a repo's own `.claude/settings.json` Hooks and `.mcp.json` MCP
 definitions auto-executing shell on clone or open of an untrusted project: Claude Code's own
 config as the auto-run carrier, RCE without consent. Their framing, "the risk now extends to
-opening untrusted projects", is precisely this surface, and it is CVE-backed. Scoped for the gate
-(roadmap, not yet in the malice pack): extend it to `.claude/settings.json` hooks, `.mcp.json`
-server commands, and repo env-injection. The CVEs are patched upstream; the gate is
-defense-in-depth for the class, a pre-open scan of auto-executing repo config that stays valuable
-regardless of any single vendor patch.
+opening untrusted projects", is precisely this surface, and it is CVE-backed. Covered by the gate:
+`skill-testfile-gate` now inventories `.claude/settings.json` and `.claude/settings.local.json` Hooks,
+`.mcp.json` and `.claude.json` server commands, and `.claude/hooks/*` scripts. It blocks a hostile hook
+command or an injected code-execution environment variable, and warns on a package-runner MCP launch
+([ADR-0013](adr/0013-config-injection-surface.md)). Sibling ecosystems (`.cursor`, `.vscode`, `.envrc`)
+remain future work. The CVEs are patched upstream; the gate is defense-in-depth for the class, a
+pre-open scan of auto-executing repo config that stays valuable regardless of any single vendor patch.
 
 ## Residual gaps we do not claim to catch
 

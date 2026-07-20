@@ -48,5 +48,13 @@ else
 fi
 
 echo ""
-if [ "$fail" -eq 0 ]; then echo "PROOF-FIXTURE PASSED — the gate covers the developer-execution surface (both test-file and git-hook vectors)."; else echo "PROOF-FIXTURE FAILED"; fi
+echo "== 5. gate MUST block the config-injection vector (config-injection-demo) =="
+if gate config-injection-demo; then echo "  FAIL: not blocked"; fail=1; else echo "  PASS: blocked (Hooks/env/MCP config auto-runs on repo open)"; fi
+
+echo ""
+echo "== 6. gate MUST NOT block benign config (config-injection-benign) =="
+if gate config-injection-benign; then echo "  PASS: not blocked (npx MCP + innocuous hook warn, do not fail)"; else echo "  FAIL: false positive on standard config"; fail=1; fi
+
+echo ""
+if [ "$fail" -eq 0 ]; then echo "PROOF-FIXTURE PASSED: the gate covers the developer-execution surface (test-file, git-hook, and config-injection vectors)."; else echo "PROOF-FIXTURE FAILED"; fi
 exit "$fail"

@@ -25,6 +25,11 @@ build (exit 1) on malice, is layered so it does not fire on honest test files, e
 runs as a pre-commit hook. A CI proof-fixture re-checks the enforce-versus-advise gap on every
 build.
 
+The same enforcing gate now covers the agent's own auto-run config: a repo's `.claude/settings.json`
+Hooks, `.mcp.json` MCP server commands, and `.claude/hooks/` scripts that run on clone or open (the
+CVE-2025-59536 config-injection surface). Presence is inventory; a hostile hook or an injected
+code-execution environment variable blocks, and a package-runner MCP launch is flagged for review.
+
 Read next: [the Gecko-vector walkthrough](docs/gecko-vector-walkthrough.md), the
 [coverage map](docs/threat-model.md), and [the proof-fixture](tests/gate-proof.sh).
 
@@ -177,7 +182,7 @@ documents the rest.
 
 - [`docs/architecture.md`](docs/architecture.md): the three planes plus the image-layer graph.
 - [`docs/gecko-vector-walkthrough.md`](docs/gecko-vector-walkthrough.md): the developer-execution-surface exploit, end to end (defanged).
-- [`docs/adr/`](docs/adr/): architecture decision records (0001 to 0012).
+- [`docs/adr/`](docs/adr/): architecture decision records (0001 to 0013).
 - [`docs/threat-model.md`](docs/threat-model.md): the skill-audit coverage map and residual gaps.
 - [`docs/references.md`](docs/references.md): the canonical bibliography for the research and incidents cited.
 - [`docs/tool-evaluations.md`](docs/tool-evaluations.md): tools assessed, adopted, and deferred.
