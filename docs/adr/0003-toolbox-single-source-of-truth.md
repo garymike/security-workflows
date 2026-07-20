@@ -4,8 +4,8 @@
 Accepted
 
 ## Context
-Secret scanning existed in two places — a marketplace `gitleaks-action` in the reusable
-workflow AND a gitleaks binary in the image — with two version pins and drift risk.
+Secret scanning existed in two places: a marketplace `gitleaks-action` in the reusable
+workflow and a gitleaks binary in the image, with two version pins and drift risk.
 
 ## Decision
 The signed toolbox images are the single source of truth. Reusable scanning workflows
@@ -14,7 +14,7 @@ only genuinely platform-native capabilities (CodeQL, dependency-review, the `gh 
 settings audit) remain native actions. Nothing is pinned twice.
 
 ## Alternatives considered
-**Action-first with duplication** — lower per-run latency (no image pull), but
+**Action-first with duplication.** Lower per-run latency (no image pull), but it
 reintroduces double-pinning and version drift.
 
 ## Consequences

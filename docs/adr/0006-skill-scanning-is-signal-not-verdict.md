@@ -7,7 +7,7 @@ Accepted
 Published skill scanners (SkillSpector, Cisco, Snyk, VirusTotal) inspect the
 agent-execution surface (`SKILL.md`, agent-invoked scripts). Research (Gecko, 2026)
 showed malicious payloads riding in on bundled test files that execute via the
-*developer's* test runner — outside every scanner. Static scanners are also evadable
+developer's test runner, outside every scanner. Static scanners are also evadable
 (SkillCloak packing; scan-time / TOCTOU rewriting).
 
 ## Decision
@@ -17,6 +17,6 @@ document residual gaps honestly in [`docs/threat-model.md`](../threat-model.md) 
 than implying "safe".
 
 ## Consequences
-The differentiator is *covering the documented blind spot*, not claiming completeness.
+The gate covers a documented blind spot rather than claiming completeness.
 Mitigations that scanning cannot provide (commit-pinning, test-runner glob exclusion,
 sandboxed dynamic analysis) are documented as required companions.
