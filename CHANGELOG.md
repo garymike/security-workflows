@@ -6,6 +6,21 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.5.0] - 2026-07-19
+
+### Added
+- **Config-injection surface coverage (CVE-2025-59536).** `skill-testfile-gate` now inventories the
+  agent's own auto-run config: `.claude/settings.json` and `.claude/settings.local.json` Hooks,
+  `.mcp.json` and `.claude.json` server commands, and `.claude/hooks/*` scripts. It scans them with the
+  existing malice rules plus a new `rules/config-injection-surface.yml`: an ERROR that blocks an injected
+  code-execution environment variable (LD_PRELOAD, NODE_OPTIONS with `--require`, BASH_ENV, and similar),
+  and a WARNING on a package-runner MCP command (npx/uvx and similar). The gate now loads the rules
+  directory rather than a single file. New fixtures `config-injection-demo` (blocks) and
+  `config-injection-benign` (clears), with `gate-proof.sh` assertions 5 and 6. Recorded in
+  [ADR-0013](docs/adr/0013-config-injection-surface.md). This broadens the developer-execution
+  differentiator from a skill's bundled file to the agent's own config; the CVEs are patched upstream, so
+  it is defense-in-depth for the class.
+
 ## [1.4.0] - 2026-07-13
 
 ### Added

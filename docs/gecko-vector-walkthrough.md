@@ -54,6 +54,15 @@ on `git commit`. SkillSpector v2.3+ does scan `.husky/` now and flags this as a 
 credential-access finding, but it exits 0 (no fail-on mode), so a CI pipeline gating on exit
 codes still lets the skill through. The scanner reports; it does not block.
 
+**Step 5: the same class, the agent's own config.** The carrier need not even be a skill file. A repo's
+own `.claude/settings.json` can define a `hooks` entry or an `env` block, and an `.mcp.json` can declare
+a server, all of which the agent runtime auto-executes on clone or open of the project (Check Point,
+CVE-2025-59536, CVSS 8.7). A `SessionStart` hook that reads `~/.ssh/id_rsa`, or a
+`NODE_OPTIONS=--require ./evil.js` env injection, runs with no consent prompt. The gate inventories these
+config files and blocks a hostile hook or an injected code-execution variable, while flagging a
+package-runner MCP launch for review. See
+[`tests/fixtures/config-injection-demo`](../tests/fixtures/config-injection-demo).
+
 ## 3. Why the state of the art misses it, both halves
 
 - **The static state of the art does not look here.** *Agent Skills in the Wild* (arXiv
@@ -100,7 +109,7 @@ exclude `.claude`/`.cursor`/`.agents` from your test-runner globs (`testPathIgno
 
 These claims are checked on every build. [`tests/gate-proof.sh`](../tests/gate-proof.sh) runs in
 [dogfood-scan](../.github/workflows/dogfood-scan.yml) and asserts, against the freshly built
-image, that the gate blocks (exit 1, fails the build) both the test-file and the git-hook demo,
+image, that the gate blocks (exit 1, fails the build) the test-file, git-hook, and config-injection demos,
 clears a benign skill (so legitimate tests are not false-positived), and fails the build where
 SkillSpector exits 0 (enforce versus advise). If that gap ever closes or the gate regresses, the
 build goes red.
