@@ -10,6 +10,10 @@ pinned, signed supply chain.
    - `security-audit.yml`: repo posture (Dependabot, Actions permissions, branch protection, visibility intent)
    - `gha-security.yml`: GitHub Actions security (zizmor plus actionlint)
    - `skill-audit.yml`: agent-skill review (SkillSpector plus the developer-execution `skill-testfile-gate`)
+   - `sast.yml`: static application security testing (Semgrep OSS), portable across public and private repos
+   - `codeql.yml`: deep whole-program SAST via CodeQL, the complementary engine for public repos
+   - `iac-security.yml`: Infrastructure-as-Code and misconfiguration scanning (Checkov)
+   - `ai-review.yml`: optional AI-semantic PR review, wrapping Anthropic's official claude-code-security-review
 2. **Domain toolbox images**: signed, use-case-scoped containers; the execution substrate.
 3. **Supply-chain CI**: build, cosign-sign, SBOM, provenance, Trivy-gate, plus tool-drift detection.
 
@@ -19,7 +23,9 @@ pinned, signed supply chain.
 security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (generic spine)
   ├── mcp-review-toolbox  ← + pip-audit · snyk-agent-scan
   ├── gha-toolbox         ← + zizmor · actionlint (+ shellcheck)
-  └── skill-audit-toolbox ← + SkillSpector · skill-testfile-gate
+  ├── skill-audit-toolbox ← + SkillSpector · skill-testfile-gate
+  ├── sast-toolbox        ← + Semgrep
+  └── iac-toolbox         ← + Checkov
 ```
 
 Each domain image is digest-pinned to the base, SBOM'd, provenance-attested (`mode=max`),

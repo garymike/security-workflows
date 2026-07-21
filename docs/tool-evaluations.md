@@ -14,7 +14,7 @@ forgotten.
 | **osv-scanner** / **syft** | Adopted | base | Dependency CVEs / SBOM, still the best fit | n/a |
 | **pip-audit** / **snyk-agent-scan** | Adopted | mcp-review | Python dep audit / MCP tool-surface (ToxicSkills-validated) | n/a |
 | **SkillSpector** | Adopted | skill-audit | NVIDIA; agent-execution surface (prompt injection, tool poisoning, exfil); SARIF; pinned by commit | On a tagged/PyPI release, pin to that instead of a commit |
-| **skill-testfile-gate** | Adopted (first-party) | skill-audit | Covers the developer-execution surface no scanner covers (Gecko test-file vector) | Sunset when SkillSpector/Cisco add test-file inspection; upstream it |
+| **skill-testfile-gate** | Adopted (first-party) | skill-audit | Enforces on the developer-execution surface that scanners report but do not gate on (Gecko test-file vector) | Sunset when SkillSpector/Cisco add test-file gating; upstream it |
 | **zizmor** | Adopted | gha | Strong GHA static analysis (expression injection, perms, unpinned actions) | n/a |
 | **actionlint** | Adopted | gha | Workflow syntax + shellcheck; complementary to zizmor | n/a |
 | **Trivy** | Adopted | build pipeline | Gates publish on fixable CRITICAL image CVEs | Stays image-CVE-only; Checkov owns IaC |
