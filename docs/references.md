@@ -62,6 +62,18 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
 
 - **Cato CTRL**, the "GIF Creator" skill that delivered MedusaLocker ransomware (Dec 2025); the "consent gap".
 
+- **[MCPoison]** Check Point Research, *Cursor IDE's MCP Vulnerability*. CVE-2025-54136 (CVSS 7.2).
+  <https://research.checkpoint.com/2025/cursor-vulnerability-mcpoison/>. Cursor's MCP-server approval
+  is bound to the server's name, not its command or arguments, so a config approved once can be
+  silently mutated to something hostile without a second prompt. Patched in Cursor 1.3 (2025-07-29).
+  Cited here for the config-injection class extended to `.cursor/mcp.json`.
+
+- **[VSCodeTasksIssue]** microsoft/vscode issue 309406, *Security: .vscode/tasks.json with runOn:
+  folderOpen enables silent arbitrary code execution from cloned repositories*.
+  <https://github.com/microsoft/vscode/issues/309406>. A task with `runOn: "folderOpen"` and
+  `presentation.reveal: "silent"` runs immediately with no visible output and no consent prompt. Fixed
+  in VS Code 1.117.0. Cited here for the config-injection class extended to `.vscode/tasks.json`.
+
 ## Tools & standards
 
 - **[SkillSpector]** NVIDIA, the skill scanner this project pairs the gate with. Advisory: it scans the bundled

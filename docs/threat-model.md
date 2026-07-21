@@ -46,9 +46,12 @@ opening untrusted projects", is precisely this surface, and it is CVE-backed. Co
 `skill-testfile-gate` now inventories `.claude/settings.json` and `.claude/settings.local.json` Hooks,
 `.mcp.json` and `.claude.json` server commands, and `.claude/hooks/*` scripts. It blocks a hostile hook
 command or an injected code-execution environment variable, and warns on a package-runner MCP launch
-([ADR-0013](adr/0013-config-injection-surface.md)). Sibling ecosystems (`.cursor`, `.vscode`, `.envrc`)
-remain future work. The CVEs are patched upstream; the gate is defense-in-depth for the class, a
-pre-open scan of auto-executing repo config that stays valuable regardless of any single vendor patch.
+([ADR-0013](adr/0013-config-injection-surface.md)). The same class extends to Cursor's `.cursor/mcp.json`
+and `.cursor/hooks.json`, and to VS Code's `.vscode/tasks.json` when it runs silently on folder open
+([ADR-0014](adr/0014-sibling-ecosystem-config-surface.md)). direnv's `.envrc` was checked and found
+already mitigated by its own `direnv allow` consent gate. The CVEs are patched upstream; the gate is
+defense-in-depth for the class, a pre-open scan of auto-executing repo config that stays valuable
+regardless of any single vendor patch.
 
 ## Residual gaps we do not claim to catch
 

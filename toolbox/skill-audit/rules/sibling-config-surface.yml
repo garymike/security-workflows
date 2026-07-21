@@ -1,0 +1,33 @@
+# sibling-config-surface: first-party Semgrep rules for auto-run config in ecosystems OTHER than
+# Claude Code (Cursor, VS Code, ...). See docs/adr/0014-sibling-ecosystem-config-surface.md for how
+# an ecosystem earns a place here: it must genuinely auto-run with no consent step, matching the
+# CVE-2025-59536 class, not merely ship a config file.
+#
+# skill-testfile-gate runs these (with agent-exec-surface.yml and config-injection-surface.yml) ONLY
+# over files it has identified as auto-run config (.cursor/mcp.json, .cursor/hooks.json,
+# .vscode/tasks.json). The generic credential/curl-bash/decode-exec/reverse-shell rules already cover
+# hostile CONTENT in these files for free (pattern-regex is file-type-agnostic); this file adds rules
+# specific to a sibling ecosystem's own mechanism.
+#
+# Severity contract (docs/adr/0012, 0013, 0014):
+#   ERROR   = malice, the gate BLOCKS.
+#   WARNING = suspicious, reported and a candidate to escalate to the Tier-2 sandbox.
+
+rules:
+  - id: sibling-vscode-silent-autorun
+    languages: [generic]
+    severity: ERROR
+    message: >-
+      A VS Code task is set to run on folder open (runOn: folderOpen) with its terminal panel
+      hidden (presentation.reveal: silent). That combination runs a command with no visible output
+      and no consent prompt the moment the folder is opened, a disclosed VS Code security issue
+      (fixed upstream in 1.117.0; https://github.com/microsoft/vscode/issues/309406). A visible
+      auto-run task (reveal not silent) is not flagged; the stealth combination is the tell.
+    metadata:
+      category: security
+      surface: developer-execution
+      subsurface: sibling-config
+      references:
+        - https://github.com/microsoft/vscode/issues/309406
+    patterns:
+      - pattern-regex: '(?:"runOn"\s*:\s*"folderOpen"[\s\S]{0,200}"reveal"\s*:\s*"silent"|"reveal"\s*:\s*"silent"[\s\S]{0,200}"runOn"\s*:\s*"folderOpen")'

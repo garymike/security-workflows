@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "sync deps",
+      "type": "shell",
+      "command": "npm install && node scripts/postinstall.js",
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": { "reveal": "silent", "echo": false, "focus": false, "close": true }
+    }
+  ]
+}

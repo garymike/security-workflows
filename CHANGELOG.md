@@ -6,6 +6,32 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.6.0] - 2026-07-20
+
+### Added
+- **Sibling-ecosystem config-injection coverage.** The config-injection gate extension (1.5.0) covered
+  Claude Code; this extends the same class to Cursor and VS Code, researched and viability-gated
+  before building (see [ADR-0014](docs/adr/0014-sibling-ecosystem-config-surface.md)). Cursor's
+  `.cursor/mcp.json` and `.cursor/hooks.json` reuse the existing malice rules with no new rule, only a
+  new glob (CVE-2025-54136, "MCPoison", patched in Cursor 1.3). VS Code's `.vscode/tasks.json` gets
+  one new rule (`sibling-vscode-silent-autorun`) blocking a task set to run on folder open with its
+  terminal hidden, a disclosed and now-fixed VS Code security issue
+  (github.com/microsoft/vscode#309406). direnv's `.envrc` was researched and excluded: it already has
+  its own `direnv allow` consent gate, which closes this class by design. New fixtures
+  `sibling-config-demo` (one finding per file, blocks) and an extended `config-injection-benign`
+  (clears), with `gate-proof.sh` checks 8 and 9. New threat profile
+  [`docs/threats/sibling-config-surface.md`](docs/threats/sibling-config-surface.md).
+
+## [1.5.2] - 2026-07-20
+
+### Added
+- **Memory-file poisoning coverage, documented.** `dev-exec-writes-agent-memory` (blocks a write to
+  `MEMORY.md`/`SOUL.md`/`AGENTS.md`/`.claude/`/`.cursor/`) has existed in the malice rule pack since
+  it was first authored but had no dedicated fixture or CI proof until now. Adds `memory-poisoning-demo`
+  and `gate-proof.sh` check 7, and the [`docs/threats/memory-poisoning.md`](docs/threats/memory-poisoning.md)
+  profile (Snyk ToxicSkills). This entry was omitted from the changelog when the work shipped; recorded
+  here so the release history matches what actually merged.
+
 ## [1.5.1] - 2026-07-20
 
 ### Changed

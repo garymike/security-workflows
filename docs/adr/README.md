@@ -19,3 +19,4 @@ Research and incident sources cited in these ADRs have full citations in [`../re
 | [0011](0011-developer-execution-surface-boundary.md) | The developer-execution surface boundary | Accepted |
 | [0012](0012-layered-severity-and-sarif.md) | Layered presence/malice severity + SARIF | Accepted |
 | [0013](0013-config-injection-surface.md) | Config-injection: developer-execution boundary extended to agent config | Accepted |
+| [0014](0014-sibling-ecosystem-config-surface.md) | Sibling-ecosystem config surface: which ecosystems earn a place, and why direnv does not | Accepted |

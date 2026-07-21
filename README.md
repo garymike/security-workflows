@@ -24,8 +24,10 @@ A malicious agent skill can ship a clean `SKILL.md` and still steal your SSH key
 run the project's tests, because the payload rides in a bundled test file or git hook that your
 toolchain auto-runs, outside the agent. Scanners see it and exit 0. The first-party
 [`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build instead. The
-same gate now covers the agent's own auto-run config (`.claude/settings.json` Hooks, `.mcp.json`
-servers), the CVE-2025-59536 config-injection surface. The runtime pillar, an MCP review compiled
+same gate now covers auto-run agent config across Claude Code (`.claude/settings.json` Hooks,
+`.mcp.json` servers), Cursor (`.cursor/mcp.json`, `.cursor/hooks.json`), and VS Code
+(`.vscode/tasks.json` run silently on open): the config-injection class, CVE-backed in each. The
+runtime pillar, an MCP review compiled
 into a firewall, is the assess-to-enforce gateway in
 [security-agents](https://github.com/garymike/security-agents).
 
@@ -197,7 +199,7 @@ documents the rest.
 - [`docs/threats/`](docs/threats/): the proving ground, one profile per real attack (threat, defanged demo, defense, and CI proof).
 - [`docs/architecture.md`](docs/architecture.md): the three planes plus the image-layer graph.
 - [`docs/gecko-vector-walkthrough.md`](docs/gecko-vector-walkthrough.md): the developer-execution-surface exploit, end to end (defanged).
-- [`docs/adr/`](docs/adr/): architecture decision records (0001 to 0013).
+- [`docs/adr/`](docs/adr/): architecture decision records (0001 to 0014).
 - [`docs/threat-model.md`](docs/threat-model.md): the skill-audit coverage map and residual gaps.
 - [`docs/references.md`](docs/references.md): the canonical bibliography for the research and incidents cited.
 - [`docs/tool-evaluations.md`](docs/tool-evaluations.md): tools assessed, adopted, and deferred.
