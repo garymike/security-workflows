@@ -25,9 +25,9 @@ run the project's tests, because the payload rides in a bundled test file or git
 toolchain auto-runs, outside the agent. Scanners see it and exit 0. The first-party
 [`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build instead. The
 same gate now covers auto-run agent config across Claude Code (`.claude/settings.json` Hooks,
-`.mcp.json` servers), Cursor (`.cursor/mcp.json`, `.cursor/hooks.json`), and VS Code
-(`.vscode/tasks.json` run silently on open): the config-injection class, CVE-backed in each. The
-runtime pillar, an MCP review compiled
+`.mcp.json` servers, CVE-2025-59536), Cursor (`.cursor/mcp.json`, CVE-2025-54136; `.cursor/hooks.json`
+by structural analogy), and VS Code (`.vscode/tasks.json` run silently on open, a disclosed and
+now-fixed security issue): the config-injection class. The runtime pillar, an MCP review compiled
 into a firewall, is the assess-to-enforce gateway in
 [security-agents](https://github.com/garymike/security-agents).
 
@@ -137,14 +137,14 @@ jobs:
     permissions:
       contents: read
       packages: read      # pull the pinned scanner image from GHCR
-    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.4.0
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@v1.6.0
     secrets: inherit
 
   audit:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
     permissions:
       contents: read
-    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.4.0
+    uses: garymike/security-workflows/.github/workflows/security-audit.yml@v1.6.0
     secrets: inherit
 ```
 
@@ -152,7 +152,7 @@ Optional extra audits (same pinning): `gha-security.yml` (zizmor plus actionlint
 `skill-audit.yml` (SkillSpector plus the test-file gate; needs `packages: read`), and
 `ai-review.yml` (AI-semantic PR review via Claude; needs a `claude-api-key` secret).
 
-`@v1.4.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
+`@v1.6.0` is the current release; a moving `@v1` tag tracks the latest 1.x. This repo's
 own action-pinning check treats `@vN` as unpinned, so pin to a commit SHA for maximum
 supply-chain safety. The scanner images are published publicly on GHCR, so any caller
 can pull them.
@@ -170,7 +170,7 @@ machine the moment you run the tests, before anything reaches a PR. Run the gate
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/garymike/security-workflows
-    rev: v1.4.0
+    rev: v1.6.0
     hooks:
       - id: skill-testfile-gate
 ```

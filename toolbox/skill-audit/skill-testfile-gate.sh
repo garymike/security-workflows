@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# skill-testfile-gate — review the DEVELOPER-execution surface of an agent skill.
+# skill-testfile-gate: review the DEVELOPER-execution surface of an agent skill.
 #
-# The surface no published skill scanner covers: files a skill bundles that are auto-executed by
-# the DEVELOPER's toolchain — the test runner (Jest/Vitest/Mocha/pytest), the package manager
-# (npm lifecycle scripts), git (hooks), or the interpreter (.pth/sitecustomize) — with full local
+# The surface scanners report but do not gate on: files a skill bundles that are auto-executed by
+# the DEVELOPER's toolchain, the test runner (Jest/Vitest/Mocha/pytest), the package manager
+# (npm lifecycle scripts), git (hooks), or the interpreter (.pth/sitecustomize), with full local
 # permissions, entirely outside the agent (Gecko Security, 2026; see docs/threat-model.md). The
-# "covered surface" (SKILL.md, agent-invoked scripts) is SkillSpector's job; this gate covers the
-# one it does not.
+# "covered surface" (SKILL.md, agent-invoked scripts) is SkillSpector's job; it reports findings on
+# this one too but has no fail-on mode, so this gate is the one that enforces.
 #
 # Two layers, tiered by severity (docs/adr/0012):
 #   • Inventory (low)   — an auto-executed skill file is PRESENT. Reported, not blocking by default:

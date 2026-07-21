@@ -29,7 +29,7 @@ Two hooks ship in [`.pre-commit-hooks.yaml`](../.pre-commit-hooks.yaml):
 # .pre-commit-config.yaml
 repos:
   - repo: https://github.com/garymike/security-workflows
-    rev: v1.2.0
+    rev: v1.6.0
     hooks:
       - id: skill-testfile-gate       # Docker-native (simplest if you have Docker)
       # - id: skill-testfile-gate-any # runtime-agnostic: docker / podman / wslc (no Docker Desktop)

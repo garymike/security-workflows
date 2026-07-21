@@ -37,7 +37,7 @@ security-toolbox-base    ← betterleaks · trufflehog · osv-scanner · syft (g
 | **gha-toolbox** | zizmor | GitHub Actions security (expression/template injection, perms, unpinned actions) |
 | | actionlint (+ shellcheck) | workflow syntax + embedded shell |
 | **skill-audit-toolbox** | SkillSpector | agent-skill scanner (prompt injection, tool poisoning, exfiltration) |
-| | skill-testfile-gate | first-party gate for the developer-execution surface no scanner covers |
+| | skill-testfile-gate | first-party gate that enforces on the developer-execution surface scanners report but do not gate on |
 | **sast-toolbox** | Semgrep | static application security testing (general code + LLM rulesets via `--config`) |
 | **iac-toolbox** | Checkov | Infrastructure-as-Code misconfig (Terraform, Dockerfiles, K8s, Helm, CloudFormation) |
 
