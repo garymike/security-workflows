@@ -30,9 +30,14 @@ LABEL org.opencontainers.image.title="skill-audit-toolbox" \
 # in one pip pass so the two versions are reconciled at build time.
 USER root
 RUN set -eux; \
+    apt-get update; \
+    apt-get install -y --no-install-recommends gcc python3-dev; \
     pip install --no-cache-dir \
       "git+https://github.com/NVIDIA/SkillSpector@${SKILLSPECTOR_REF}" \
-      "semgrep==${SEMGREP_VERSION}"
+      "semgrep==${SEMGREP_VERSION}"; \
+    apt-get purge -y gcc python3-dev; \
+    apt-get autoremove -y; \
+    rm -rf /var/lib/apt/lists/*
 COPY skill-testfile-gate.sh /usr/local/bin/skill-testfile-gate
 COPY rules/ /usr/local/share/skill-audit/
 RUN chmod 0755 /usr/local/bin/skill-testfile-gate
