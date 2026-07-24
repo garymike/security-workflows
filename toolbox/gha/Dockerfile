@@ -14,7 +14,7 @@
 # checksum-verify it in a downloader stage first.
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 
-FROM python:3.12-slim-bookworm@sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b AS downloader
+FROM python:3.12-slim-bookworm@sha256:d50fb7611f86d04a3b0471b46d7557818d88983fc3136726336b2a4c657aa30b AS downloader
 
 ARG ACTIONLINT_VERSION=1.7.12
 
