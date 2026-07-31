@@ -15,36 +15,38 @@ updates:
       github-actions:
         patterns: ["*"]
 
-  # Base OS image in the base toolbox Dockerfile (FROM python:3.12-slim-bookworm@sha256:…).
-  # Domain images (mcp-review, …) build FROM our own security-toolbox-base, so their
-  # only upstream OS-image dependency lives in toolbox/base.
+  # Base OS image in the base toolbox Dockerfile (FROM python:<ver>-slim-bookworm@sha256:…).
+  # Most domain images (mcp-review, sast, iac, skill-audit) build FROM our own
+  # security-toolbox-base, so their only upstream OS-image dependency lives here.
+  # gha is the exception and is configured separately below.
+  #
+  # No `ignore` for Python. #39 added one holding 3.12, on the grounds that
+  # yara-python (via SkillSpector) had no 3.13/3.14 wheel and the slim image ships
+  # no C toolchain. It did not work: #49 bumped 3.12 to 3.14 five days later, right
+  # through the guard, because these images pin by digest and the semver-based
+  # ignore never matched. The bump also turned out to be fine, since a wheel had
+  # landed, so the rule was blocking future updates for a reason that no longer
+  # held while failing to block the one it was written for.
+  #
+  # The real gate is CI: `Build toolbox and scan this repo` builds every image
+  # from source on every Dependabot PR and Trivy-scans the result, so a runtime
+  # bump that breaks the build fails the PR instead of reaching main. That check
+  # caught nothing here because there was nothing to catch.
   - package-ecosystem: docker
     directory: /toolbox/base
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
-    ignore:
-      # Hold Python at 3.12. yara-python (pulled in by SkillSpector) has no wheel
-      # for 3.13 or 3.14 yet, and the slim image ships no C toolchain to build it
-      # from source, so a minor or major bump breaks the skill-audit image build.
-      # Patch updates (3.12.x) still flow. Revisit when a wheel lands upstream.
-      - dependency-name: "python"
-        update-types:
-          - version-update:semver-minor
-          - version-update:semver-major
 
-  # gha-toolbox's downloader stage also pins the python base image.
+  # gha-toolbox's downloader stage pins the python base image directly, so unlike
+  # the other domain images it has its own upstream OS-image dependency.
+  # Keep it on the same Python as toolbox/base so the whole toolbox builds on one
+  # runtime; both are updated by the same weekly schedule and both are built by
+  # the same CI gate, so a drift between them fails the build rather than shipping.
   - package-ecosystem: docker
     directory: /toolbox/gha
     schedule:
       interval: weekly
     cooldown:
       default-days: 7
-    ignore:
-      # Keep the gha downloader stage on the same Python as the base image (3.12)
-      # so the whole toolbox builds on one runtime. Patch updates still flow.
-      - dependency-name: "python"
-        update-types:
-          - version-update:semver-minor
-          - version-update:semver-major
