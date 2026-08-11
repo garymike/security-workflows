@@ -17,6 +17,10 @@ jobs:
   base:
     name: Build, sign, push — security-toolbox-base
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes — one wedged job would
+    # spend 18% of a monthly free tier before anyone looked.
+    # 2.5x the worst of five observed runs (168s).
+    timeout-minutes: 7
     permissions:
       contents: read
       packages: write   # push image to GHCR
@@ -92,6 +96,11 @@ jobs:
     name: Build, sign, push — ${{ matrix.image }}
     needs: base
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes — one wedged job would
+    # spend 18% of a monthly free tier before anyone looked.
+    # 2.5x the worst across the matrix (330s, skill-audit-toolbox).
+    # Sized for the slowest arm rather than the average of five.
+    timeout-minutes: 14
     permissions:
       contents: read
       packages: write
