@@ -10,6 +10,10 @@ jobs:
   audit:
     name: Repository security settings
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes. This workflow is reusable,
+    # so one wedged job spends a caller's quota, not ours.
+    # 2.5x the worst of five observed runs (11s), at the floor.
+    timeout-minutes: 2
     env:
       GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:

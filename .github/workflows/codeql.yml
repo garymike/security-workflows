@@ -27,6 +27,11 @@ jobs:
   codeql:
     name: CodeQL analyze
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes. This workflow is reusable,
+    # so one wedged job spends a caller's quota, not ours.
+    # No successful run in the last twenty-five, so this is a ceiling
+    # rather than a measurement. Tighten once there is data.
+    timeout-minutes: 20
     permissions:
       contents: read
       security-events: write   # upload results to code scanning

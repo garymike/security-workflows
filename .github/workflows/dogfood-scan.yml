@@ -18,6 +18,11 @@ jobs:
   scan:
     name: Build toolbox and scan this repo
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes — one wedged job would
+    # spend 18% of a monthly free tier before anyone looked.
+    # 2.5x the worst of eight observed runs (228s). It builds the
+    # toolbox image before scanning, so it is slow by design.
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

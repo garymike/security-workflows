@@ -19,6 +19,10 @@ jobs:
   gha-security:
     name: GitHub Actions security (zizmor + actionlint)
     runs-on: ubuntu-latest
+    # Bound, because the default is 360 minutes. This workflow is reusable,
+    # so one wedged job spends a caller's quota, not ours.
+    # 2.5x the worst of five observed runs (19s), at the floor.
+    timeout-minutes: 2
     permissions:
       contents: read
       packages: read   # pull the pinned scanner image from GHCR
