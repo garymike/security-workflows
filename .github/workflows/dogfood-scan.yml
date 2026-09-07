@@ -79,6 +79,10 @@ jobs:
           severity: CRITICAL
           ignore-unfixed: true
           exit-code: '1'
+        env:
+          # CVE-2026-56854 (golang.org/x/crypto/ssh) is not reachable here: the images run no
+          # SSH server. Scoped to the two binaries that cannot yet be fixed; see the document.
+          TRIVY_VEX: ${{ github.workspace }}/.trivy/toolbox.openvex.json
 
       - name: Build sast-toolbox on the local base (validates toolbox/sast/Dockerfile)
         run: docker build --build-arg BASE=security-toolbox-base:ci -t sast-toolbox:ci ./toolbox/sast

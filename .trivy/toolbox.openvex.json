@@ -1,0 +1,34 @@
+{
+  "@context": "https://openvex.dev/ns/v0.2.0",
+  "@id": "https://github.com/garymike/security-workflows/.trivy/toolbox.openvex.json",
+  "author": "Michael <garymike@users.noreply.github.com>",
+  "role": "Maintainer, garymike/security-workflows",
+  "timestamp": "2026-09-07T00:00:00Z",
+  "version": 1,
+  "statements": [
+    {
+      "vulnerability": {
+        "name": "CVE-2026-56854",
+        "description": "golang.org/x/crypto/ssh: authentication bypass due to unenforced source-address restrictions"
+      },
+      "products": [
+        {
+          "@id": "pkg:golang/golang.org/x/crypto@v0.53.0",
+          "identifiers": {
+            "purl": "pkg:golang/golang.org/x/crypto@v0.53.0"
+          }
+        },
+        {
+          "@id": "pkg:golang/golang.org/x/crypto@v0.52.0",
+          "identifiers": {
+            "purl": "pkg:golang/golang.org/x/crypto@v0.52.0"
+          }
+        }
+      ],
+      "status": "not_affected",
+      "justification": "vulnerable_code_not_in_execute_path",
+      "impact_statement": "The vulnerable code is the golang.org/x/crypto/ssh SSH SERVER path, which fails to enforce source-address restrictions declared in authorized_keys. The toolbox images run no SSH server. x/crypto is an indirect dependency of two scanner binaries (betterleaks, osv-scanner) that are invoked as short-lived CLI processes against a read-only source tree, and betterleaks contains no reference to crypto/ssh at all (upstream code search: zero results). Neither binary listens on a socket. There is no reachable path from any toolbox entrypoint to ssh.ServerConfig. Not suppressed for syft, which was upgraded to 1.51.1 because that release ships x/crypto 0.55.0 and genuinely fixes the issue; a fixable finding is fixed, not excepted.",
+      "action_statement": "Revisit when betterleaks or osv-scanner ship a release built against x/crypto >= 0.55.0, then drop the corresponding product from this document and re-arm the gate. Upstream issues are filed against both. Re-evaluate immediately if any toolbox image ever gains a long-running or listening process."
+    }
+  ]
+}
