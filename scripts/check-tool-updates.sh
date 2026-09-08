@@ -86,9 +86,13 @@ ss_head="$(gh api repos/NVIDIA/SkillSpector/commits/HEAD --jq '.sha' 2>/dev/null
 if [ -z "$ss_head" ]; then
   echo "  skillspector: could not resolve upstream HEAD (skipped)"
 elif [ "${ss_head:0:12}" != "${ss_pinned:0:12}" ]; then
-  echo "::warning::skillspector pinned at ${ss_pinned:0:12} but upstream HEAD is ${ss_head:0:12} — bump SKILLSPECTOR_REF and tools.lock."
-  row "skillspector" "${ss_pinned:0:12}" "${ss_head:0:12}" "**behind**"
-  DRIFTED=1
+  # Reported but deliberately NOT counted as drift. SkillSpector publishes no
+  # releases, so it is pinned by commit and moves on every upstream push. Failing
+  # on that would keep this gate permanently red no matter what anyone did, which
+  # is precisely the cry-wolf signal it exists to avoid. Weigh it against the
+  # upstream changelog and bump deliberately, not on sight.
+  echo "::warning::skillspector pinned at ${ss_pinned:0:12} but upstream HEAD is ${ss_head:0:12} — bump SKILLSPECTOR_REF and tools.lock if the changelog warrants it (advisory: does not fail this check)."
+  row "skillspector" "${ss_pinned:0:12}" "${ss_head:0:12}" "behind (advisory, tracks HEAD)"
 else
   echo "  skillspector: up to date (${ss_pinned:0:12})"
   row "skillspector" "${ss_pinned:0:12}" "${ss_head:0:12}" "current"

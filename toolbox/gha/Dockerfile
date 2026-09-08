@@ -40,7 +40,7 @@ RUN set -eux; \
 # --------------------------------------------------------------------------- #
 FROM ${BASE}
 
-ARG ZIZMOR_VERSION=1.26.1
+ARG ZIZMOR_VERSION=1.30.0
 
 LABEL org.opencontainers.image.title="gha-toolbox" \
       org.opencontainers.image.description="Pinned GitHub Actions / CI-security scanners — security-toolbox-base + zizmor + actionlint (+ shellcheck)." \

@@ -5,29 +5,29 @@
 # name             version   source                              purpose
 #
 # --- security-toolbox-base (generic spine, shared by every domain image) ---
-betterleaks        1.6.1     github:betterleaks/betterleaks      # secret scanning (drop-in gitleaks successor)
-trufflehog         3.95.8    github:trufflesecurity/trufflehog   # verified-secret scanning
-osv-scanner        2.4.0     github:google/osv-scanner           # dependency CVEs
+betterleaks        1.8.1     github:betterleaks/betterleaks      # secret scanning (drop-in gitleaks successor)
+trufflehog         3.97.4    github:trufflesecurity/trufflehog   # verified-secret scanning
+osv-scanner        2.5.1     github:google/osv-scanner           # dependency CVEs
 syft               1.51.1    github:anchore/syft                 # SBOM generation
 #
 # --- mcp-review-toolbox (= security-toolbox-base + these) ---
 pip-audit          2.10.1    pypi:pip-audit                      # Python dependency audit
-snyk-agent-scan    0.5.12    pypi:snyk-agent-scan                # MCP tool-surface scan (renamed from mcp-scan)
+snyk-agent-scan    0.6.2    pypi:snyk-agent-scan                # MCP tool-surface scan (renamed from mcp-scan)
 #
 # --- gha-toolbox (= security-toolbox-base + these) ---
-zizmor             1.26.1    pypi:zizmor                         # GitHub Actions security audit
+zizmor             1.30.0    pypi:zizmor                         # GitHub Actions security audit
 actionlint         1.7.12    github:rhysd/actionlint             # GitHub Actions linter (+ shellcheck)
 #
 # --- skill-audit-toolbox (= security-toolbox-base + these) ---
 # SkillSpector ships no PyPI release or tags, so it is pinned by commit SHA.
 skillspector       c2d09df019e358d3dc12d980b82c798b87cb9f56  github:NVIDIA/SkillSpector  # Anthropic Skill / agent scanner (pinned by commit)
-semgrep            1.168.0   pypi:semgrep                        # test-file-gate malice engine (same pin as sast-toolbox)
+semgrep            1.176.1   pypi:semgrep                        # test-file-gate malice engine (same pin as sast-toolbox)
 #
 # --- sast-toolbox (= security-toolbox-base + these) ---
-semgrep            1.168.0   pypi:semgrep                        # SAST (general code + LLM rulesets via --config)
+semgrep            1.176.1   pypi:semgrep                        # SAST (general code + LLM rulesets via --config)
 #
 # --- iac-toolbox (= security-toolbox-base + these) ---
-checkov            3.3.7     pypi:checkov                        # IaC misconfig (Terraform/Docker/K8s/Helm/CFN)
+checkov            3.3.16     pypi:checkov                        # IaC misconfig (Terraform/Docker/K8s/Helm/CFN)
 #
 # base OS image (all stages): python:3.12-slim-bookworm
 #   digest: sha256:8a7e7cc04fd3e2bd787f7f24e22d5d119aa590d429b50c95dfe12b3abe52f48b

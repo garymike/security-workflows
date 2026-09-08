@@ -19,7 +19,7 @@ FROM ${BASE}
 ARG SKILLSPECTOR_REF=c2d09df019e358d3dc12d980b82c798b87cb9f56
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
-ARG SEMGREP_VERSION=1.168.0
+ARG SEMGREP_VERSION=1.176.1
 
 LABEL org.opencontainers.image.title="skill-audit-toolbox" \
       org.opencontainers.image.description="Anthropic Skill / agent-capability security review — security-toolbox-base + SkillSpector + a developer-execution-surface (test-file) gate." \

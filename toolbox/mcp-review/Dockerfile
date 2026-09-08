@@ -16,7 +16,7 @@ FROM ${BASE}
 ARG PIP_AUDIT_VERSION=2.10.1
 # snyk-agent-scan is the renamed successor to invariantlabs-ai/mcp-scan (the PyPI
 # `mcp-scan` package is now a redirect stub). Same version line (0.5.12).
-ARG SNYK_AGENT_SCAN_VERSION=0.5.12
+ARG SNYK_AGENT_SCAN_VERSION=0.6.2
 
 LABEL org.opencontainers.image.title="mcp-review-toolbox" \
       org.opencontainers.image.description="Pinned static security scanners for MCP server review — security-toolbox-base + pip-audit + snyk-agent-scan." \
@@ -33,4 +33,6 @@ RUN set -eux; \
 USER toolbox
 
 # `docker run <image>` prints tool versions as a self-test (never fails).
-CMD ["sh", "-lc", "set +e; echo 'mcp-review-toolbox — pinned scanners:'; betterleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; pip-audit --version; snyk-agent-scan --version 2>&1 | head -1; true"]
+# snyk-agent-scan 0.6.x removed --version (argparse subcommands only), so the self-test
+# reads the installed version from pip metadata instead of a CLI flag.
+CMD ["sh", "-lc", "set +e; echo 'mcp-review-toolbox — pinned scanners:'; betterleaks version; trufflehog --version 2>&1 | head -1; osv-scanner --version 2>&1 | head -1; syft version 2>&1 | head -1; pip-audit --version; echo \"snyk-agent-scan $(pip show snyk-agent-scan 2>/dev/null | awk '/^Version:/{print $2}')\"; true"]

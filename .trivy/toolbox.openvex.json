@@ -4,7 +4,7 @@
   "author": "Michael <garymike@users.noreply.github.com>",
   "role": "Maintainer, garymike/security-workflows",
   "timestamp": "2026-09-07T00:00:00Z",
-  "version": 1,
+  "version": 2,
   "statements": [
     {
       "vulnerability": {
@@ -23,12 +23,18 @@
           "identifiers": {
             "purl": "pkg:golang/golang.org/x/crypto@v0.52.0"
           }
+        },
+        {
+          "@id": "pkg:golang/golang.org/x/crypto@v0.54.0",
+          "identifiers": {
+            "purl": "pkg:golang/golang.org/x/crypto@v0.54.0"
+          }
         }
       ],
       "status": "not_affected",
       "justification": "vulnerable_code_not_in_execute_path",
-      "impact_statement": "The vulnerable code is the golang.org/x/crypto/ssh SSH SERVER path, which fails to enforce source-address restrictions declared in authorized_keys. The toolbox images run no SSH server. x/crypto is an indirect dependency of two scanner binaries (betterleaks, osv-scanner) that are invoked as short-lived CLI processes against a read-only source tree, and betterleaks contains no reference to crypto/ssh at all (upstream code search: zero results). Neither binary listens on a socket. There is no reachable path from any toolbox entrypoint to ssh.ServerConfig. Not suppressed for syft, which was upgraded to 1.51.1 because that release ships x/crypto 0.55.0 and genuinely fixes the issue; a fixable finding is fixed, not excepted.",
-      "action_statement": "Revisit when betterleaks or osv-scanner ship a release built against x/crypto >= 0.55.0, then drop the corresponding product from this document and re-arm the gate. Upstream issues are filed against both. Re-evaluate immediately if any toolbox image ever gains a long-running or listening process."
+      "impact_statement": "The vulnerable code is the golang.org/x/crypto/ssh SSH SERVER path, which fails to enforce source-address restrictions declared in authorized_keys. The toolbox images run no SSH server. x/crypto reaches these images only as an indirect dependency of two scanner binaries, betterleaks 1.8.1 (x/crypto 0.53.0) and osv-scanner 2.5.1 (x/crypto 0.54.0), both of which are the latest upstream releases and neither of which yet builds against the 0.55.0 fix. Both run as short-lived CLI processes over a read-only source tree, neither listens on a socket, and betterleaks contains no reference to crypto/ssh at all (upstream code search: zero results). There is no reachable path from any toolbox entrypoint to ssh.ServerConfig. Deliberately NOT claimed for syft, which was upgraded to 1.51.1 because that release ships x/crypto 0.55.0 and genuinely fixes the issue, and which now scans clean without this exception: a fixable finding is fixed, not excepted.",
+      "action_statement": "Scoped to the exact affected x/crypto versions (0.52.0, 0.53.0, 0.54.0) so a tool that rebuilds against 0.55.0 or later stops matching and the gate re-arms by itself, with no edit here. Revisit when betterleaks or osv-scanner ship such a release, then drop the corresponding version and confirm the scan still passes without it. Re-evaluate immediately if any toolbox image ever gains a long-running or listening process."
     }
   ]
 }
