@@ -76,9 +76,10 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
 
 ## Tools & standards
 
-- **[SkillSpector]** NVIDIA, the skill scanner this project pairs the gate with. Advisory: it scans the bundled
-  surface (incl. `.husky/` in v2.3+) and reports findings, but has no fail-on mode and exits 0; the gate
-  enforces (exit 1) where it advises. <https://github.com/NVIDIA/SkillSpector>
+- **[SkillSpector]** NVIDIA, the skill scanner this project pairs the gate with. It scans the bundled
+  surface (incl. `.husky/` in v2.3+) and gates on exit code (exit 1 above `risk_score` 50). Coverage is
+  carrier-dependent: it blocks our `.test.ts` credential-exfil demo at 73/100 and clears the same payload
+  class in `.husky/pre-commit` at 28/100, classifying the hook as non-executable. The gate blocks both. <https://github.com/NVIDIA/SkillSpector>
 - **[ClaudeReview]** Anthropic, *claude-code-security-review*: official AI-powered PR security review (Claude reads
   the diff for injection/authz/crypto/RCE/business-logic flaws; a second LLM pass filters false positives).
   <https://github.com/anthropics/claude-code-security-review> ·

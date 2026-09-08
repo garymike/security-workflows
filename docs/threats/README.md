@@ -1,7 +1,7 @@
 # Threat profiles
 
 The proving ground. Each profile is one real attack: what it is, why existing tooling misses it or
-only advises, a defanged runnable demo, how this platform enforces against it, and the CI proof that
+reports without blocking, a defanged runnable demo, how this platform enforces against it, and the CI proof that
 re-checks it on every build. New threats become new profiles; the platform thesis does not move.
 
 | Threat | Grounding | Status | Enforced by |

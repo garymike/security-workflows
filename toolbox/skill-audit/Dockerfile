@@ -4,8 +4,9 @@
 # skill-audit-toolbox — Anthropic Skill / agent-capability security review, layered on
 # the signed base.
 #   = base + SkillSpector (agent-skill scanner: prompt injection, tool poisoning, data exfil,
-#     excessive agency — advisory, exits 0) + a first-party test-file GATE for the DEVELOPER-
-#     execution surface: it fails the build (exit 1) where advisory scanners do not.
+#     excessive agency) + a first-party test-file GATE for the DEVELOPER-execution surface.
+#     SkillSpector's reach into that surface is carrier-dependent: it blocks a .test.ts payload
+#     (73/100) and clears the same class in .husky/pre-commit (28/100, exit 0). The gate blocks both.
 # STATIC ANALYSIS ONLY. See docs/threat-model.md for the coverage map + residual gaps.
 #
 # BASE is pinned by digest in CI. SkillSpector ships no PyPI release or tags, so it is

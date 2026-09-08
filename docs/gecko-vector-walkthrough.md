@@ -1,15 +1,17 @@
-# The Gecko vector: what scanners flag but do not block
+# The Gecko vector: the carrier scanners flag but do not block
 
 An agent skill can hide a credential-stealer in a bundled test file or git hook. That file runs
-when your toolchain runs `npm test` or `git commit`, outside the agent. Skill scanners report it
-(they flag it, but they exit 0 and never fail the build), and the research misses it by scope.
-`skill-testfile-gate` is the gate that blocks it.
+when your toolchain runs `npm test` or `git commit`, outside the agent. Skill-scanner coverage of
+that surface is uneven, the git-hook carrier slips through, and the research misses the surface
+entirely by scope. `skill-testfile-gate` is the gate that blocks both carriers.
 
 This is the surface `skill-testfile-gate` exists to cover. Skill scanners are starting to see it
-but do not block it: they advise and exit 0. Per the two most rigorous studies in the field, it
-is also the one surface that neither the static nor the dynamic research state of the art
-touches, and that is provable from their own scope statements. This walkthrough is defanged: the
-payloads below (and the runnable fixtures in [`tests/fixtures/`](../tests/fixtures/)) read a
+but reach into it unevenly: SkillSpector blocks our `.test.ts` demo (73/100, `DO NOT INSTALL`,
+exit 1) and clears our `.husky/pre-commit` demo carrying the same payload class (28/100,
+`CAUTION`, exit 0), because it classifies a git hook as non-executable. Per the two most rigorous
+studies in the field, it is also the one surface that neither the static nor the dynamic research
+state of the art touches, and that is provable from their own scope statements. This walkthrough
+is defanged: the payloads below (and the runnable fixtures in [`tests/fixtures/`](../tests/fixtures/)) read a
 canary and POST to `localhost`, never a real host. It is a threat demonstration with its
 mitigation, not a kit.
 
@@ -18,10 +20,10 @@ mitigation, not a kit.
 | Surface | Who executes it | What inspects it |
 |---|---|---|
 | Agent-execution: `SKILL.md`, agent-invoked scripts, tool definitions | the agent, at use time | SkillSpector, and every published skill scanner |
-| Developer-execution: `*.test.ts`, `conftest.py`, npm `postinstall`, git hooks, `.pth` | the developer's toolchain (`vitest`/`pytest`, `npm install`, `git commit`), no agent involved | scanners report it (SkillSpector v2.3+ flags a `.husky/` payload HIGH) but none fail the build; the research state of the art excludes it by scope, so this gate enforces |
+| Developer-execution: `*.test.ts`, `conftest.py`, npm `postinstall`, git hooks, `.pth` | the developer's toolchain (`vitest`/`pytest`, `npm install`, `git commit`), no agent involved | scanners reach it unevenly: SkillSpector blocks a `.test.ts` payload (73/100) but clears the same payload class in `.husky/pre-commit` (28/100, exit 0); the research state of the art excludes the surface by scope, so this gate enforces on every carrier |
 
-Every scanner blocks on the first surface. On the second they advise at most, and this gate is
-the first to fail the build.
+Every scanner blocks on the first surface. On the second, coverage is partial and depends on the
+carrier, and this gate is the one that fails the build on every carrier in that list.
 
 ## 2. The attack, step by step (defanged)
 
@@ -50,9 +52,14 @@ fake skill using adjacent techniques reportedly reached about 26,000 agents.
 
 **Step 4: the same trick, a stealthier carrier.** The payload need not be a test file. A husky
 `.husky/pre-commit` hook ([fixture](../tests/fixtures/gecko-hook-demo/.husky/pre-commit)) fires
-on `git commit`. SkillSpector v2.3+ does scan `.husky/` now and flags this as a HIGH
-credential-access finding, but it exits 0 (no fail-on mode), so a CI pipeline gating on exit
-codes still lets the skill through. The scanner reports; it does not block.
+on `git commit`. This is where scanner coverage breaks. SkillSpector scans `.husky/` and finds
+both halves of the payload (`PE3` credential access at 90% confidence, `E1` external transmission),
+and it does gate on exit code, exit 1 above a `risk_score` of 50. It still exits 0 here, scoring
+the skill 28/100 (`CAUTION`), while the same payload class in the Step 3 test file scores 73/100
+and blocks. The difference is carrier classification: SkillSpector lists `.husky/pre-commit` as
+type `other`, `Executable: No`, and a file it does not consider executable cannot carry an
+executable-code risk. But `git commit` runs it, with full local permissions. The detection is
+right; the classification is what leaves the gap.
 
 **Step 5: the same class, the agent's own config.** The carrier need not even be a skill file. A repo's
 own `.claude/settings.json` can define a `hooks` entry or an `env` block, and an `.mcp.json` can declare
@@ -81,8 +88,9 @@ package-runner MCP launch for review. See
   "natural-language coverage gap", anti-sandbox evasion) are all agent-path limits.
 
 So the developer-execution surface sits outside both research approaches, and the papers' own
-scope statements say so. The practical scanner that does see it (SkillSpector) only advises
-(exit 0). The gate's job is to enforce on this surface: fail the build, in CI and pre-commit.
+scope statements say so. The practical scanner that does see it (SkillSpector) covers it only
+partly, blocking the test-file carrier and clearing the git-hook one. The gate's job is to
+enforce across the whole surface: fail the build, in CI and pre-commit.
 
 ## 4. The mitigation: `skill-testfile-gate`
 
@@ -110,9 +118,9 @@ exclude `.claude`/`.cursor`/`.agents` from your test-runner globs (`testPathIgno
 These claims are checked on every build. [`tests/gate-proof.sh`](../tests/gate-proof.sh) runs in
 [dogfood-scan](../.github/workflows/dogfood-scan.yml) and asserts, against the freshly built
 image, that the gate blocks (exit 1, fails the build) the test-file, git-hook, and config-injection demos,
-clears a benign skill (so legitimate tests are not false-positived), and fails the build where
-SkillSpector exits 0 (enforce versus advise). If that gap ever closes or the gate regresses, the
-build goes red.
+clears a benign skill (so legitimate tests are not false-positived), and pins SkillSpector's
+carrier coverage in both directions: it must block the test-file demo (exit 1) and clear the
+git-hook one (exit 0). If that coverage changes or the gate regresses, the build goes red.
 
 ## Sources
 

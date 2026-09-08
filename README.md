@@ -4,10 +4,10 @@ Reusable GitHub Actions security workflows over signed, pinned scanner toolbox i
 dogfooded in this repo.
 
 It is the static layer of a small security platform with one throughline: most AI-native
-security tooling stops at advice (it scans, reports, and exits 0), and this platform turns that
-advice into a control that blocks. Here, at build time, auto-run repo artifacts (a skill's test
-files and git hooks, and the agent's own `.claude` and `.mcp.json` config) are scanned and the
-build fails on malice. At runtime, in [security-agents](https://github.com/garymike/security-agents),
+security tooling stops at assessment (it scans, scores, and recommends), and this platform turns
+that assessment into a control that blocks. Here, at build time, auto-run repo artifacts (a
+skill's test files and git hooks, and the agent's own `.claude` and `.mcp.json` config) are
+scanned and the build fails on malice. At runtime, in [security-agents](https://github.com/garymike/security-agents),
 an MCP server review is compiled into a firewall policy that blocks unapproved egress and tool
 calls. The reviews come from the methodology skills in
 [garymike/skills](https://github.com/garymike/skills). Assess in the skills, enforce here and in
@@ -22,8 +22,11 @@ without moving the story.
 
 A malicious agent skill can ship a clean `SKILL.md` and still steal your SSH keys the moment you
 run the project's tests, because the payload rides in a bundled test file or git hook that your
-toolchain auto-runs, outside the agent. Scanners see it and exit 0. The first-party
-[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build instead. The
+toolchain auto-runs, outside the agent. Scanner coverage of that surface is uneven: SkillSpector
+blocks our demo payload in a `.test.ts` file (73/100, `DO NOT INSTALL`, exit 1) but clears the
+same payload class in a `.husky/pre-commit` hook (28/100, exit 0), because it classifies a git
+hook as non-executable. The first-party
+[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build on both. The
 same gate now covers auto-run agent config across Claude Code (`.claude/settings.json` Hooks,
 `.mcp.json` servers, CVE-2025-59536), Cursor (`.cursor/mcp.json`, CVE-2025-54136; `.cursor/hooks.json`
 by structural analogy), and VS Code (`.vscode/tasks.json` run silently on open, a disclosed and
@@ -48,7 +51,8 @@ Both, and which is which is deliberate.
 
 **Blocks the build.** The first-party [`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh)
 exits non-zero on malice, in `skill-audit.yml` and in the pre-commit hook. That is the whole point
-of the project: the surface it covers is one where the published scanners report and exit 0, so a
+of the project: on the carriers it covers, the published scanners report the payload and still
+exit 0 (SkillSpector scores our git-hook demo 28/100, under its own block threshold of 50), so a
 CI gate on exit codes lets the payload through. It also fails on the config-injection class
 (`.claude/settings.json` Hooks, `.mcp.json`, `.cursor/`, `.vscode/tasks.json`).
 
@@ -147,7 +151,7 @@ source of truth. Without Docker Desktop, use the `skill-testfile-gate-any` hook.
 | | What | Why |
 |---|---|---|
 | **Adopted** (best-in-class, pinned and signed) | Semgrep, CodeQL, Checkov, betterleaks, trufflehog, SkillSpector, Anthropic's AI review, plus pipelock and OPA in security-agents | Do not reinvent a solved problem. Each is pinned by digest or SHA, SBOM'd, and cosign-signed. |
-| **First-party** (only where the field has a gap) | the enforcing gate for the developer-execution and config-injection surface (this repo); the assess-to-enforce compiler and engine-neutral policy contract (security-agents) | Build where the field only advises. |
+| **First-party** (only where the field has a gap) | the enforcing gate for the developer-execution and config-injection surface (this repo); the assess-to-enforce compiler and engine-neutral policy contract (security-agents) | Build only where the field's coverage stops. |
 | **Modular** (the mechanism) | the `mcp-runtime-policy` contract with swappable adapters, layered signed images, composable reusable workflows | So the two rows above can evolve while the story does not. |
 
 When an upstream tool grows to cover a first-party gap, the first-party code is meant to be retired

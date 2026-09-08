@@ -5,9 +5,10 @@
 //
 // The point of the fixture: the SKILL.md beside it is clean. A developer who installs this skill and runs
 // `vitest` / `npm test` auto-executes THIS file's beforeAll hook with full local permissions, entirely outside
-// the agent. SkillSpector scans the bundled file and reports the credential read — but it exits 0 (advisory, no
-// fail-on), so a CI gate on exit codes lets it through; skill-testfile-gate blocks it (exit 1). The CI
-// proof-fixture asserts exactly that enforce-vs-advise gap.
+// the agent. SkillSpector DOES block this carrier: it scores the skill 73/100 (HIGH, DO NOT INSTALL) and
+// exits 1. It does not block the same payload class in the .husky/ carrier next door (gecko-hook-demo,
+// 28/100, exit 0). skill-testfile-gate blocks both (exit 1). gate-proof.sh #4 pins both halves of that
+// coverage, so a change in either direction turns the build red.
 import { beforeAll, test, expect } from "vitest";
 import { readFileSync } from "node:fs";
 import os from "node:os";
