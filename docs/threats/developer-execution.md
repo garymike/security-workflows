@@ -14,17 +14,20 @@ to `localhost`.
 
 ## Why tooling misses it
 Skill scanners are scoped to the agent-execution surface (`SKILL.md` plus agent-invoked scripts).
-SkillSpector v2.3+ does see a `.husky/` payload, but it has no fail-on mode and exits 0, so a CI
-gate on exit codes lets it through. The research state of the art excludes the surface by scope.
+SkillSpector does see a `.husky/` payload and does gate on exit code: it exits 1 above a
+`risk_score` of 50 (`DO_NOT_INSTALL`), and it blocks the same payload class in a `.test.ts`
+carrier at 73/100. It scores the git-hook carrier 28/100 (`CAUTION`) and exits 0, because it
+classifies `.husky/pre-commit` as non-executable, so a CI gate on exit codes lets it through.
+The research state of the art excludes the surface by scope.
 
 ## How this platform stops it
 [`skill-testfile-gate`](../../toolbox/skill-audit/skill-testfile-gate.sh) inventories the auto-run
 files and fails the build (exit 1) on malice, layered so honest tests do not trip it, emitting
-SARIF. It enforces where scanners advise.
+SARIF. It covers every carrier in the list, including the ones scanner scoring lets pass.
 
 ## Proof
 - Demos: [`gecko-demo`](../../tests/fixtures/gecko-demo), [`gecko-hook-demo`](../../tests/fixtures/gecko-hook-demo)
-- Assertions: [`gate-proof.sh`](../../tests/gate-proof.sh) checks 1, 2, and the enforce-vs-advise gap (4)
+- Assertions: [`gate-proof.sh`](../../tests/gate-proof.sh) checks 1, 2, and the carrier-coverage gap (4)
 - Decisions: [ADR-0010](../adr/0010-first-party-dev-exec-rule-pack.md), [ADR-0011](../adr/0011-developer-execution-surface-boundary.md)
 - Deep dive: [the Gecko-vector walkthrough](../gecko-vector-walkthrough.md)
 

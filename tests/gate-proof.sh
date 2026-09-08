@@ -5,13 +5,16 @@
 #   1 (BLOCK)   gate MUST block gecko-demo, the test-file vector (malice in a *.test.ts).
 #   2 (BLOCK)   gate MUST block gecko-hook-demo, the git-hook vector (malice in .husky/pre-commit).
 #   3 (CLEAR)   gate MUST NOT block benign-skill (presence != malice, a legit bundled test is not a finding).
-#   4 (ENFORCE) HARD: the gate FAILS the build on gecko-hook-demo (exit!=0) while SkillSpector exits 0.
-#               SkillSpector v2.3+ DOES report the payload (a HIGH credential-access finding), it is not
-#               blind, but it has no fail-on mode, so it never gates: a CI pipeline that trusts exit codes
-#               would let this skill through with SkillSpector alone. The gate is a purpose-built enforcing
-#               gate for this surface. (The research SOTA still excludes the surface by scope: arXiv
-#               2601.10338 scans SKILL.md + invoked scripts; 2607.02357 detonates the agent path, not
-#               `npm test`.) If SkillSpector ever grows a fail-on/gating mode, #4 fails loudly to revisit this.
+#   4 (COVERAGE) HARD: SkillSpector's carrier coverage, pinned in BOTH directions. It is not blind and it
+#               is not advisory: it gates on exit code (exit 1 above risk_score 50), and it DOES block
+#               gecko-demo, the .test.ts carrier, at 73/100 (HIGH, DO NOT INSTALL). It does NOT block
+#               gecko-hook-demo, the .husky/pre-commit carrier, at 28/100 (CAUTION, exit 0), even though
+#               it finds the same payload there (PE3 credential access, 90% confidence): it classifies the
+#               hook as Executable=No. So a CI pipeline that trusts exit codes ships the git-hook skill
+#               with SkillSpector alone. The gate blocks both carriers. Asserting both halves means a
+#               change in EITHER direction goes red and we re-measure before touching the docs. (The
+#               research SOTA excludes the surface entirely by scope: arXiv 2601.10338 scans SKILL.md +
+#               invoked scripts; 2607.02357 detonates the agent path, not `npm test`.)
 #   5 (BLOCK)   gate MUST block config-injection-demo, the agent's own auto-run config (CVE-2025-59536).
 #   6 (CLEAR)   gate MUST NOT block config-injection-benign (npx MCP + an innocuous hook warn, do not fail).
 #   7 (BLOCK)   gate MUST block memory-poisoning-demo, a write to persistent agent memory (Snyk ToxicSkills).
@@ -42,18 +45,20 @@ echo "== 3. gate MUST NOT block the benign skill =="
 if gate benign-skill; then echo "  PASS: not blocked (presence != malice)"; else echo "  FAIL: false positive"; fail=1; fi
 
 echo ""
-echo "== 4. enforce vs advise (HARD): the gate FAILS the build where SkillSpector does not =="
+echo "== 4. carrier coverage (HARD): the gate blocks both carriers, SkillSpector blocks only one =="
 # The gate must exit nonzero (enforce) on the git-hook vector.
 if gate gecko-hook-demo >/dev/null 2>&1; then gate_enforces=0; else gate_enforces=1; fi
-# SkillSpector must exit 0 (advise): it reports the payload but has no fail-on mode, so an exit-code CI gate
-# would NOT stop this skill. That gap is exactly what the gate closes.
-if ss gecko-hook-demo; then ss_gates=0; else ss_gates=1; fi
-if [ "$gate_enforces" -eq 1 ] && [ "$ss_gates" -eq 0 ]; then
-  echo "  PASS: the gate exits nonzero (fails CI/pre-commit) while SkillSpector exits 0 (advisory, no fail-on)."
-  echo "        An exit-code CI gate would let this skill through with SkillSpector alone; the gate blocks it."
+# SkillSpector must BLOCK the .test.ts carrier (73/100) and CLEAR the .husky/ carrier (28/100), even though
+# it finds the same payload in both. Pin both halves: if either flips, its coverage moved and the docs that
+# quote these numbers need re-measuring before they are trusted again.
+if ss gecko-demo;      then ss_blocks_testfile=0; else ss_blocks_testfile=1; fi
+if ss gecko-hook-demo; then ss_blocks_hook=0;     else ss_blocks_hook=1; fi
+if [ "$gate_enforces" -eq 1 ] && [ "$ss_blocks_hook" -eq 0 ] && [ "$ss_blocks_testfile" -eq 1 ]; then
+  echo "  PASS: SkillSpector blocks the .test.ts carrier and clears the .husky/ one; the gate blocks both."
+  echo "        An exit-code CI gate would let the git-hook skill through with SkillSpector alone."
 else
-  echo "  FAIL: expected gate-enforces (exit!=0) + SkillSpector-advisory (exit 0); got gate=$gate_enforces ss=$ss_gates."
-  echo "        If SkillSpector now gates (exit!=0), the enforce-vs-advise framing needs revisiting."; fail=1
+  echo "  FAIL: expected gate=1 ss_hook=0 ss_testfile=1; got gate=$gate_enforces ss_hook=$ss_blocks_hook ss_testfile=$ss_blocks_testfile."
+  echo "        SkillSpector's carrier coverage changed. Re-measure both fixtures, then fix docs/ to match."; fail=1
 fi
 
 echo ""

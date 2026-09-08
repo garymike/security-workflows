@@ -6,7 +6,8 @@
 # (npm lifecycle scripts), git (hooks), or the interpreter (.pth/sitecustomize), with full local
 # permissions, entirely outside the agent (Gecko Security, 2026; see docs/threat-model.md). The
 # "covered surface" (SKILL.md, agent-invoked scripts) is SkillSpector's job; it reports findings on
-# this one too but has no fail-on mode, so this gate is the one that enforces.
+# this one too, and it does gate above a risk_score of 50, but it scores our git-hook credential-exfil
+# demo 28/100 and exits 0, so this gate is the one that enforces here.
 #
 # Two layers, tiered by severity (docs/adr/0012):
 #   • Inventory (low)   — an auto-executed skill file is PRESENT. Reported, not blocking by default:

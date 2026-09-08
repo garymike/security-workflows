@@ -97,6 +97,14 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   honest claim: the gate exits nonzero (enforces) while SkillSpector exits 0 (advises). A false-green proof made
   true.
 
+> **Correction (2026-09-08).** The two entries above are wrong about *why*. SkillSpector has never lacked a
+> fail-on mode: it exits 1 above a `risk_score` of 50. Measured against our own fixtures on both the pinned
+> v2.3.11 and v2.5.0, it **blocks** `gecko-demo` (the `.test.ts` carrier) at 73/100 and **clears**
+> `gecko-hook-demo` (the `.husky/pre-commit` carrier) at 28/100, having classified the git hook as
+> `Executable: No`. The outcome claim ("exits 0 on the git-hook fixture") held; the mechanism claim
+> ("advisory, no fail-on") did not. The differentiator is carrier coverage, not enforcement-vs-advice.
+> `gate-proof.sh` #4 now pins both halves so this cannot drift unnoticed again.
+
 ---
 
 ## [1.3.0] - 2026-07-11
