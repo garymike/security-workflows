@@ -104,9 +104,13 @@ Or in a workflow, via the reusable workflows (`security-scan`, `gha-security`,
 
 ## Staying current
 
-- The weekly `build-toolbox.yml` rebuilds every image (picking up base-image patches) and
-  runs `scripts/check-tool-updates.sh`, which warns when a pinned tool has a newer upstream
-  release.
+- The weekly `build-toolbox.yml` rebuilds every image, picking up base-image patches.
+- The weekly `tool-drift.yml` runs `scripts/check-tool-updates.sh --fail-on-drift` and goes
+  red when a pinned tool is behind upstream, with a table of what moved in the run summary.
+  These tools are pinned by download URL and commit SHA rather than a package manifest, so
+  Dependabot cannot see them and this workflow is the only thing that watches them. Red means
+  a pin is stale, not that anything is broken: images still build and publish, since drift is
+  deliberately kept off the release path.
 - `dogfood-scan.yml` builds the whole stack from source and runs it against this repo on
   every push/PR, so the toolbox proves itself on our own code.
 

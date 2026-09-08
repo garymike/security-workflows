@@ -1,0 +1,44 @@
+name: Tool drift
+
+# The toolbox pins eleven tools by download URL and commit SHA, not by a package
+# manifest, so Dependabot cannot see a single one of them. This workflow is the
+# only thing that watches them.
+#
+# It used to run inside build-toolbox.yml as `... || true`, against a script that
+# never exited non-zero anyway. That is advice, not a control: nine of eleven pins
+# drifted unnoticed until CVE-2026-56854 in a vendored Go binary broke the build.
+# Splitting it out gives drift its own red-or-green status instead of a warning
+# buried in a build log, and keeps it off the publish path so a stale pin can
+# never block shipping an image.
+
+on:
+  schedule:
+    - cron: '0 8 * * 1'   # weekly Monday 08:00 UTC, after build (06:00) and dogfood (07:00)
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: true
+
+jobs:
+  drift:
+    name: Pinned tools vs upstream
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compare pins against upstream
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        # Exits 3 on drift. Red here means a pin is behind, not that anything is
+        # broken: images still build and publish. Fix by bumping tools.lock and the
+        # matching Dockerfile ARG together, which the build gate then rebuilds and
+        # rescans. A tool that cannot be resolved upstream is reported as unchecked
+        # rather than counted as current.
+        run: bash scripts/check-tool-updates.sh --fail-on-drift
