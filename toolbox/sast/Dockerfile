@@ -12,7 +12,7 @@
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
-ARG SEMGREP_VERSION=1.168.0
+ARG SEMGREP_VERSION=1.176.1
 
 LABEL org.opencontainers.image.title="sast-toolbox" \
       org.opencontainers.image.description="Static application security testing — security-toolbox-base + Semgrep OSS (general code + LLM-security rulesets via --config)." \

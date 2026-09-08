@@ -10,7 +10,7 @@
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
-ARG CHECKOV_VERSION=3.3.7
+ARG CHECKOV_VERSION=3.3.16
 
 LABEL org.opencontainers.image.title="iac-toolbox" \
       org.opencontainers.image.description="Infrastructure-as-Code / misconfiguration scanning — security-toolbox-base + Checkov (Terraform, Dockerfiles, K8s, Helm, CloudFormation)." \
