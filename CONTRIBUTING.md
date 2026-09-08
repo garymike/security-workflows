@@ -25,7 +25,10 @@ never vendor its source. To add or bump one:
 
 1. Update the tool's `ARG` in the relevant `toolbox/*/Dockerfile` and its line in
    [`toolbox/tools.lock`](toolbox/tools.lock).
-2. Keep `scripts/check-tool-updates.sh` in sync; it reports version drift weekly.
+2. Keep `scripts/check-tool-updates.sh` in sync with `toolbox/tools.lock`. The weekly
+   `tool-drift.yml` runs it with `--fail-on-drift` and fails when a pin is behind, so a
+   new tool that is not listed there is a tool nothing is watching. Run it locally with
+   no flag for an advisory pass.
 3. Record the selection decision in [`docs/tool-evaluations.md`](docs/tool-evaluations.md).
 4. First-party code is only for a documented gap with no upstream answer, and carries a
    sunset rule (see `skill-testfile-gate`).
