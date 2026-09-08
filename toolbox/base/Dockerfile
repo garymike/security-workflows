@@ -12,7 +12,7 @@
 #     SHA-256 checksums at build time.
 # Keep the ARG versions below in sync with toolbox/tools.lock.
 
-FROM python:3.14-slim-bookworm@sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52 AS downloader
+FROM python:3.14-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f AS downloader
 
 ARG BETTERLEAKS_VERSION=1.6.1
 ARG TRUFFLEHOG_VERSION=3.95.8
@@ -72,7 +72,7 @@ RUN set -eux; \
 
 
 # --------------------------------------------------------------------------- #
-FROM python:3.14-slim-bookworm@sha256:23c59390fc717bf09f9336908199a0ae75d9c4264bf296123f94ad772fea3b52
+FROM python:3.14-slim-bookworm@sha256:9ab8d9c8514b44f90cf0029dd42fdd7e9e211e639c8b995304cc04568dee900f
 
 LABEL org.opencontainers.image.title="security-toolbox-base" \
       org.opencontainers.image.description="Generic pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \
