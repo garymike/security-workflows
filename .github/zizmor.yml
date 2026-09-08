@@ -1,0 +1,19 @@
+# zizmor configuration.
+#
+# self-repository: zizmor 1.30.0 added an audit preferring GitHub's newer
+# self-repository syntax (uses: $/...) over workspace-relative (uses: ./...).
+# The advice is sound and the syntax is genuinely supported (GitHub announced it
+# in July 2026), but actionlint 1.7.12, the current release as of 2026-09, does
+# not recognise it and hard-fails: "not following the format
+# owner/repo/path/to/workflow.yml@ref nor ./path/to/workflow.yml".
+#
+# Both tools run blocking in the same gha-security step, so the two cannot be
+# satisfied at once. Keeping ./ is the option that stays valid for every consumer
+# and for actionlint; the finding is low severity and purely stylistic.
+#
+# Revisit when actionlint supports $/ and drop this block. Tracked by the weekly
+# tool-drift gate, which will surface the actionlint release that enables it.
+rules:
+  self-repository:
+    ignore:
+      - self-scan.yml
