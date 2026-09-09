@@ -66,15 +66,28 @@ jobs:
 
       - name: Secret scan via the pinned toolbox image
         env:
-          IMAGE: ghcr.io/garymike/security-workflows/security-toolbox-base:latest
+          # Pinned by digest, not :latest. A rebuild of the toolbox used to change
+          # what every caller scanned with, without any caller changing a line --
+          # betterleaks 1.6.1 -> 1.8.1 (#64) added the generic-password and
+          # generic-credential-uri rules and turned green repos red overnight.
+          # Bump this deliberately, alongside toolbox/tools.lock.
+          IMAGE: ghcr.io/garymike/security-workflows/security-toolbox-base@sha256:5614f8b901b9eaaed08dff70ece757ebf17a1e14693246299de63f90e6fe89b1
           FAIL: ${{ inputs.fail-on-findings }}
         run: |
           set -uo pipefail
           docker pull "$IMAGE"
-          if docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" betterleaks dir /src --no-banner --redact; then
+          # Scan "." rather than "/src". betterleaks derives finding fingerprints
+          # from the scan root as given, so an absolute root yields absolute
+          # fingerprints (/src/path/file.yml:rule:12). Those can never match a
+          # committed .gitleaksignore, which is written relative to the repo
+          # root -- so with an absolute root the ignore file silently does
+          # nothing for every caller. The working directory is already /src.
+          # --verbose prints rule, path, line and a redacted excerpt, so a
+          # failure says what to look at. --redact keeps values out of the log.
+          if docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE"                betterleaks dir . --no-banner --redact --verbose; then
             echo "betterleaks: no secrets found."
           else
-            echo "::error::betterleaks reported potential secrets."
+            echo "::error::betterleaks reported potential secrets. Review the findings above; if one is a false positive, add its fingerprint to .gitleaksignore in the caller repo."
             if [ "$FAIL" = "true" ]; then exit 1; fi
             echo "::warning::continuing (fail-on-findings=false)."
           fi
