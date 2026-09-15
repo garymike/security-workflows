@@ -16,7 +16,7 @@ FROM ${BASE}
 ARG PIP_AUDIT_VERSION=2.10.1
 # snyk-agent-scan is the renamed successor to invariantlabs-ai/mcp-scan (the PyPI
 # `mcp-scan` package is now a redirect stub). Same version line (0.5.12).
-ARG SNYK_AGENT_SCAN_VERSION=0.6.2
+ARG SNYK_AGENT_SCAN_VERSION=0.6.3
 
 LABEL org.opencontainers.image.title="mcp-review-toolbox" \
       org.opencontainers.image.description="Pinned static security scanners for MCP server review — security-toolbox-base + pip-audit + snyk-agent-scan." \
