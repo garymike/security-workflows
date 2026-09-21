@@ -16,7 +16,25 @@
 set -uo pipefail
 
 FAIL_ON_DRIFT=0
-[ "${1:-}" = "--fail-on-drift" ] && FAIL_ON_DRIFT=1
+EMIT_DRIFT=""
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --fail-on-drift) FAIL_ON_DRIFT=1 ;;
+    # Machine-readable drift for scripts/apply-tool-bumps.py: one
+    # "name<TAB>pinned<TAB>latest" row per behind tool. Separate from the human
+    # output on purpose, so the bump automation never has to parse a log.
+    --emit-drift)
+      EMIT_DRIFT="${2:-}"
+      [ -n "$EMIT_DRIFT" ] || { echo "--emit-drift needs a file path" >&2; exit 2; }
+      shift
+      ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+  shift
+done
+# Truncate up front so a run that finds no drift leaves an empty file rather
+# than yesterday's rows.
+[ -n "$EMIT_DRIFT" ] && : > "$EMIT_DRIFT"
 DRIFTED=0
 SUMMARY="${GITHUB_STEP_SUMMARY:-}"
 [ -n "$SUMMARY" ] && {
@@ -61,6 +79,7 @@ check() { # name current latest
   elif [ "$cur" != "$latest" ]; then
     echo "::warning::$name pinned at $cur but $latest is available — bump toolbox/tools.lock and the matching Dockerfile ARG."
     row "$name" "$cur" "$latest" "**behind**"
+    [ -n "$EMIT_DRIFT" ] && printf '%s\t%s\t%s\n' "$name" "$cur" "$latest" >> "$EMIT_DRIFT"
     DRIFTED=1
   else
     echo "  $name: up to date ($cur)"
