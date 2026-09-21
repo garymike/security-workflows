@@ -5,10 +5,16 @@ name: Tool bump
 # A gate that is red most Mondays regardless of how promptly anyone acts is the
 # same cry-wolf signal tool-drift.yml was split out to avoid, one level up.
 #
-# So this opens the bump PR instead. It applies patch and minor bumps only, proves
-# them by building every image before proposing anything, and leaves majors and
-# the SkillSpector commit pin to a human with a changelog. Merging stays manual —
-# this removes the typing, not the review.
+# So this prepares the bump instead. It applies patch and minor bumps only, proves
+# them by building every image, and pushes a ready branch. Majors and the
+# SkillSpector commit pin are left to a human with a changelog.
+#
+# It deliberately does NOT open the PR itself. Doing that needs "Allow GitHub
+# Actions to create and approve pull requests", and GitHub does not let you grant
+# create without also granting approve — so turning it on would let any workflow in
+# this repo approve PRs, which is a poor trade for saving one click in the repo
+# that guards everything else. The branch is pushed and the job summary links
+# straight to the compare view.
 #
 # Runs before build (06:00) and the drift gate (08:00) so a merged PR is picked up
 # the same morning.
@@ -31,14 +37,14 @@ env:
 
 jobs:
   bump:
-    name: Detect drift, validate, open PR
+    name: Detect drift, validate, push branch
     runs-on: ubuntu-latest
     # Bound, because the default is 360 minutes. Six image builds against the
     # worst observed build-toolbox arm (330s) plus headroom for a cold cache.
+    # Observed end-to-end on 2026-09-21: 2m20s of builds.
     timeout-minutes: 25
     permissions:
-      contents: write        # push the bump branch
-      pull-requests: write   # open or update the PR
+      contents: write   # push the bump branch. No pull-requests scope: see above.
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -79,7 +85,7 @@ jobs:
           fi
 
       # The real gate. A version that does not exist, or whose published checksum
-      # does not match, fails here and no PR is ever opened. build-push-action is
+      # does not match, fails here and nothing is ever pushed. build-push-action is
       # not used: nothing is pushed or signed, and a plain build keeps this off the
       # publish path entirely.
       - name: Validate — build base
@@ -95,7 +101,7 @@ jobs:
             echo "::endgroup::"
           done
 
-      - name: Push branch and open PR
+      - name: Push branch
         if: steps.apply.outputs.changed == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -107,29 +113,20 @@ jobs:
           git add toolbox/
           git commit -m "chore(toolbox): bump pinned tools to clear the drift gate"
 
-          # Force-push a single long-lived branch so consecutive weeks update one PR
-          # rather than stacking a new one every Monday.
+          # Force-push a single long-lived branch so consecutive weeks refresh one
+          # branch rather than leaving a trail of stale ones.
           git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
 
           {
-            echo "Opened automatically by \`.github/workflows/tool-bump.yml\`."
             echo ""
-            cat bump-summary.md
+            echo "### Ready to open"
             echo ""
-            echo "Every image was built from these pins before this PR was opened, so"
-            echo "each version resolves and its published checksum verifies. Majors and"
-            echo "the SkillSpector commit pin are deliberately excluded — bump those by"
-            echo "hand against the upstream changelog."
+            echo "[Open the pull request for \`${BRANCH}\`](https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1)"
             echo ""
-            echo "Note: this PR is created with \`GITHUB_TOKEN\`, so GitHub does not start"
-            echo "the usual PR checks on it. The build above is the gate."
-          } > pr-body.md
-
-          if gh pr view "$BRANCH" --json state --jq '.state' 2>/dev/null | grep -q OPEN; then
-            gh pr edit "$BRANCH" --body-file pr-body.md
-            echo "Updated the existing PR."
-          else
-            gh pr create --base main --head "$BRANCH" \
-              --title "chore(toolbox): bump pinned tools to clear the drift gate" \
-              --body-file pr-body.md
-          fi
+            echo "Every image above was built from these pins before the branch was pushed,"
+            echo "so each version resolves and its published checksum verifies."
+            echo ""
+            echo "Opening the PR is manual on purpose — see the comment at the top of"
+            echo "\`.github/workflows/tool-bump.yml\`. Opening it yourself also means the"
+            echo "normal PR checks run, which a \`GITHUB_TOKEN\`-created PR would skip."
+          } >> "$GITHUB_STEP_SUMMARY"
