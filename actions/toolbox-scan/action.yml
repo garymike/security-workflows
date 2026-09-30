@@ -6,7 +6,7 @@ branding:
 
 inputs:
   image:
-    description: 'Toolbox image reference. Pin by digest (…@sha256:…) for supply-chain safety.'
+    description: 'Toolbox image reference. Defaults to :latest so you track scanner updates; pass a digest (…@sha256:…) to pin for supply-chain safety.'
     required: false
     default: 'ghcr.io/garymike/security-workflows/security-toolbox-base:latest'
   path:
