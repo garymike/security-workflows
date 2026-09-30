@@ -21,6 +21,14 @@ ARG SKILLSPECTOR_REF=c2d09df019e358d3dc12d980b82c798b87cb9f56
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
 ARG SEMGREP_VERSION=1.178.0
+# semgrep pins pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
+# CRITICAL, fixed in 2.14.0. semgrep touches PyJWT only to authenticate to Semgrep
+# AppSec Platform, which these workflows never do (no SEMGREP_APP_TOKEN is ever
+# supplied), so the flaw is not reachable here -- but a fixable finding is fixed,
+# not excepted. Installed with --no-deps so semgrep's own constraint does not pull
+# 2.13.0 back; cryptography already arrives with semgrep. Drop this override once
+# semgrep relaxes the pin and pip resolves 2.14.0 or later on its own.
+ARG PYJWT_VERSION=2.15.1
 
 LABEL org.opencontainers.image.title="skill-audit-toolbox" \
       org.opencontainers.image.description="Anthropic Skill / agent-capability security review — security-toolbox-base + SkillSpector + a developer-execution-surface (test-file) gate." \
@@ -36,6 +44,7 @@ RUN set -eux; \
     pip install --no-cache-dir \
       "git+https://github.com/NVIDIA/SkillSpector@${SKILLSPECTOR_REF}" \
       "semgrep==${SEMGREP_VERSION}"; \
+    pip install --no-cache-dir --no-deps "pyjwt==${PYJWT_VERSION}"; \
     apt-get purge -y gcc python3-dev; \
     apt-get autoremove -y; \
     rm -rf /var/lib/apt/lists/*
