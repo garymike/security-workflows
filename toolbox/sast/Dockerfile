@@ -13,6 +13,14 @@ ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
 ARG SEMGREP_VERSION=1.178.0
+# semgrep pins pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
+# CRITICAL, fixed in 2.14.0. semgrep touches PyJWT only to authenticate to Semgrep
+# AppSec Platform, which these workflows never do (no SEMGREP_APP_TOKEN is ever
+# supplied), so the flaw is not reachable here -- but a fixable finding is fixed,
+# not excepted. Installed with --no-deps so semgrep's own constraint does not pull
+# 2.13.0 back; cryptography already arrives with semgrep. Drop this override once
+# semgrep relaxes the pin and pip resolves 2.14.0 or later on its own.
+ARG PYJWT_VERSION=2.15.1
 
 LABEL org.opencontainers.image.title="sast-toolbox" \
       org.opencontainers.image.description="Static application security testing — security-toolbox-base + Semgrep OSS (general code + LLM-security rulesets via --config)." \
@@ -21,7 +29,8 @@ LABEL org.opencontainers.image.title="sast-toolbox" \
 
 USER root
 RUN set -eux; \
-    pip install --no-cache-dir "semgrep==${SEMGREP_VERSION}"
+    pip install --no-cache-dir "semgrep==${SEMGREP_VERSION}"; \
+    pip install --no-cache-dir --no-deps "pyjwt==${PYJWT_VERSION}"
 USER toolbox
 
 # `docker run <image>` prints the tool version as a self-test (never fails).
