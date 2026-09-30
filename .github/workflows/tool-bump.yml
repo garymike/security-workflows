@@ -50,8 +50,9 @@ jobs:
         with:
           # No credentials on disk: the validation step below runs `docker build`,
           # which executes upstream installers for ten third-party tools. Those
-          # must never find a pushable token in .git/config. The push step at the
-          # end supplies one through the environment instead, after the builds.
+          # must never find a pushable token in .git/config. The commit step at
+          # the end supplies one through the environment instead, after the
+          # builds, and spends it on the API rather than on a git remote.
           persist-credentials: false
 
       - name: Detect drift
@@ -107,15 +108,23 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           set -euo pipefail
-          git config user.name  "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git checkout -b "$BRANCH"
-          git add toolbox/
-          git commit -m "chore(toolbox): bump pinned tools to clear the drift gate"
 
-          # Force-push a single long-lived branch so consecutive weeks refresh one
-          # branch rather than leaving a trail of stale ones.
-          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "HEAD:refs/heads/${BRANCH}"
+          # `git commit` here would be signed by nobody -- GITHUB_TOKEN is not a
+          # signing key -- and main requires signed commits, so the branch could
+          # never merge without an admin bypass. The helper commits through the
+          # GraphQL createCommitOnBranch mutation instead, which GitHub signs
+          # server-side, and fails if the result is not actually verified.
+          {
+            echo "Applied by tool-bump.yml and validated by building every image"
+            echo "from these pins before the branch was written."
+            echo ""
+            cat bump-summary.md
+          } > commit-body.md
+
+          python3 scripts/push-signed-branch.py \
+            "$GITHUB_REPOSITORY" "$BRANCH" "$GITHUB_SHA" \
+            "chore(toolbox): bump pinned tools to clear the drift gate" \
+            commit-body.md
 
           {
             echo ""
@@ -123,8 +132,11 @@ jobs:
             echo ""
             echo "[Open the pull request for \`${BRANCH}\`](https://github.com/${GITHUB_REPOSITORY}/compare/main...${BRANCH}?expand=1)"
             echo ""
-            echo "Every image above was built from these pins before the branch was pushed,"
+            echo "Every image above was built from these pins before the branch was written,"
             echo "so each version resolves and its published checksum verifies."
+            echo ""
+            echo "The commit is signed by GitHub, so it merges under the signed-commits"
+            echo "rule on \`main\` without an admin bypass."
             echo ""
             echo "Opening the PR is manual on purpose — see the comment at the top of"
             echo "\`.github/workflows/tool-bump.yml\`. Opening it yourself also means the"
