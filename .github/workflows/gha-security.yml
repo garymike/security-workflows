@@ -39,7 +39,10 @@ jobs:
 
       - name: Audit workflows (actionlint + zizmor)
         env:
-          IMAGE: ghcr.io/garymike/security-workflows/gha-toolbox:latest
+          # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
+          # rebuild otherwise changes what every caller scans with, without any
+          # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
+          IMAGE: ghcr.io/garymike/security-workflows/gha-toolbox@sha256:e6dbea9b2383f38dfdda0c86073662e408242d68cac352cfdc75470280b676e4
           FAIL: ${{ inputs.fail-on-findings }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

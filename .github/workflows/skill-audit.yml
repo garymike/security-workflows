@@ -56,7 +56,10 @@ jobs:
       - name: Audit skills
         id: audit
         env:
-          IMAGE: ghcr.io/garymike/security-workflows/skill-audit-toolbox:latest
+          # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
+          # rebuild otherwise changes what every caller scans with, without any
+          # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
+          IMAGE: ghcr.io/garymike/security-workflows/skill-audit-toolbox@sha256:6f5f4c48e1d3f7c19702225f6ab02531d1b0ab738806fef1fdb7b02792d29786
           SCAN_PATH: ${{ inputs.path }}
           FAIL: ${{ inputs.fail-on-findings }}
           GATE_FAIL: ${{ inputs.gate-fail-on-findings }}
