@@ -53,7 +53,10 @@ jobs:
       - name: Semgrep scan
         id: semgrep
         env:
-          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox:latest
+          # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
+          # rebuild otherwise changes what every caller scans with, without any
+          # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
+          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox@sha256:99efabd29e949a94423efa13233cb1b13334d1b8e17c75ab299d7f2af3ee7349
           SCAN_PATH: ${{ inputs.path }}
           CONFIG: ${{ inputs.config }}
         run: |
