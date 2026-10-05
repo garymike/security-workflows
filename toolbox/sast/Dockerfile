@@ -12,7 +12,7 @@
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
-ARG SEMGREP_VERSION=1.178.0
+ARG SEMGREP_VERSION=1.179.0
 # semgrep pins pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
 # CRITICAL, fixed in 2.14.0. semgrep touches PyJWT only to authenticate to Semgrep
 # AppSec Platform, which these workflows never do (no SEMGREP_APP_TOKEN is ever
