@@ -12,9 +12,13 @@ and left alone. Majors carry breaking CLI and ruleset changes that need a human
 reading a changelog, and quietly shipping one across six images is how a scanner
 starts silently passing everything.
 
-Anything that does not parse as semver is skipped rather than guessed at —
-skillspector is pinned by commit SHA and is excluded upstream by the drift check
-already, but this stays defensive in case that changes.
+Anything that does not parse as semver is skipped rather than guessed at.
+
+skillspector never reaches this script: check-tool-updates.sh hard-checks it but
+deliberately keeps it out of --emit-drift, because its ARG is SKILLSPECTOR_REF (a
+commit SHA) rather than SKILLSPECTOR_VERSION. If it ever did arrive here, patch_lock
+would rewrite tools.lock, patch_dockerfiles would match nothing, and the half-bump
+would be reported as applied — exactly the lie this module exists to prevent.
 
 Usage: apply-tool-bumps.py <drift.tsv> <repo-root>
 Exit:  0 = something changed (or nothing to do), 1 = error.

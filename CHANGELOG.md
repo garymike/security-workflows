@@ -6,6 +6,54 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.0] - 2026-10-19
+
+### Changed
+- **SkillSpector bumped v2.3.11 to v2.13.0, and most of this repo's differentiator is now gone.**
+  Said plainly rather than reworded. Re-measured against our own fixtures, v2.13.0 blocks four of
+  the five malicious carriers the gate was built for: the test-file demo (64/100), the git-hook
+  demo (76/100), Claude config-injection (100/100) and the Cursor/VS Code bundle (51/100). The
+  `.husky/pre-commit` carrier used to score 28/100 and exit 0 because the scanner typed it
+  `Executable: No`; v2.11 added a shebang/mode fallback and closed it. One carrier is left: a
+  bundled test file that appends to `MEMORY.md` scores **0/100 `SAFE`, "no security issues
+  detected"**, at `Coverage 100.0%` with the file typed `Executable: Yes`. Holding the mechanism
+  fixed and varying only the payload, that write is worth about 8 points of prose matching
+  (0/100 inert, 35/100 with a literal injection string, against 27/100 for the same string as
+  inert `SKILL.md` prose and no write at all), and no variant blocks. Reframed the README, the
+  Gecko walkthrough (which gains a Step 6 for this carrier), the threat model, references, the
+  threat profile, both fixture headers, the Dockerfile and the gate header accordingly.
+- **`gate-proof.sh` #4 rebuilt: one hard assertion, four printed observations.** It used to
+  hard-assert that SkillSpector clears the git-hook carrier, which v2.13.0 falsified, so the bump
+  would have turned the dogfood build red. It now hard-asserts only that SkillSpector does not
+  block the persistent-memory-write demo, the gate's last uniquely-covered carrier, and *prints*
+  its live score and verdict for all five. The Cursor/VS Code bundle clears the risk_score-50
+  threshold by a single point, so asserting it would turn this gate red on any minor upstream
+  rescoring. If the hard half ever flips, the failure message says to re-measure and shrink the
+  claim per the README sunset rule, not to find new wording.
+- **`ss_scan` normalises file modes inside the container.** v2.11+ classifies a file as executable
+  partly on `mode & 0o111`, and a bind mount from a non-POSIX host presents everything as 777,
+  which types `SKILL.md` and every `.json` as executable and inflates the score. A local run
+  silently disagreed with CI. The helper now copies the fixture in and forces dirs 755 / files 644,
+  so both agree.
+
+### Fixed
+- **The SkillSpector drift check is a real gate instead of an advisory warning.** It was exempt
+  from `--fail-on-drift` on the grounds that SkillSpector "publishes no releases", so a pin
+  tracking HEAD would drift on every upstream push and keep the gate permanently red. That premise
+  expired: upstream has tagged releases roughly monthly since v2.10.0. The exemption outlived it,
+  and a warning that cannot fail is a warning nobody acts on, so skillspector sat eight releases
+  behind while every other pin in `tools.lock` was bumped twice. It is now a normal hard check
+  against the latest release, deliberately kept out of `--emit-drift`: a SkillSpector bump changes
+  measured behaviour that `gate-proof.sh` asserts and `docs/` quote, so it needs a human to
+  re-measure, and `apply-tool-bumps.py` would half-apply it anyway (the ARG is `SKILLSPECTOR_REF`,
+  not `SKILLSPECTOR_VERSION`, so the lock would move and the Dockerfile would not).
+- **`tools.lock` and `SKILLSPECTOR_REF` are now cross-checked.** The lock records the release
+  version, the Dockerfile ARG records the commit that tag points at, and nothing verified they
+  described the same thing, so a half-bump read as green. The drift check now resolves the tag and
+  fails if they disagree. Verified by simulating the half-bump.
+
+---
+
 ## [1.6.0] - 2026-07-20
 
 ### Added

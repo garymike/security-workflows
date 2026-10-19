@@ -99,26 +99,51 @@ check actionlint      "$(pinned actionlint)"      "$(gh_latest rhysd/actionlint)
 check semgrep         "$(pinned semgrep)"         "$(pypi_latest semgrep)"
 check checkov         "$(pinned checkov)"         "$(pypi_latest checkov)"
 
-# SkillSpector is pinned by commit (no releases upstream) — compare against HEAD.
+# SkillSpector: a hard check, like every other tool, against the latest RELEASE.
+#
+# This used to be advisory. The old reasoning was that SkillSpector "publishes no
+# releases", so the pin tracked HEAD and moved on every upstream push; failing on
+# that would have kept this gate permanently red no matter what anyone did. That
+# premise expired — upstream has tagged releases roughly monthly since v2.10.0 —
+# and the exemption outlived it. A warning that cannot fail is a warning nobody
+# acts on: skillspector sat eight releases behind while every other pin in this
+# file was bumped twice.
+#
+# Deliberately NOT written to --emit-drift. That file is the auto-bump queue, and a
+# SkillSpector bump is not mechanical: it changes measured scanner behaviour that
+# tests/gate-proof.sh hard-asserts and that docs/ quote by number, so a human has to
+# re-measure the fixtures first. apply-tool-bumps.py would also half-apply it — the
+# ARG is SKILLSPECTOR_REF, not SKILLSPECTOR_VERSION, so patch_lock() would rewrite
+# tools.lock, patch_dockerfiles() would match nothing, and the bump would report
+# success while the image still installed the old commit.
 ss_pinned="$(pinned skillspector)"
-ss_head="$(gh api repos/NVIDIA/SkillSpector/commits/HEAD --jq '.sha' 2>/dev/null)"
-if [ -z "$ss_head" ]; then
-  echo "  skillspector: could not resolve upstream HEAD (skipped)"
-elif [ "${ss_head:0:12}" != "${ss_pinned:0:12}" ]; then
-  # Reported but deliberately NOT counted as drift. SkillSpector publishes no
-  # releases, so it is pinned by commit and moves on every upstream push. Failing
-  # on that would keep this gate permanently red no matter what anyone did, which
-  # is precisely the cry-wolf signal it exists to avoid. Weigh it against the
-  # upstream changelog and bump deliberately, not on sight.
-  echo "::warning::skillspector pinned at ${ss_pinned:0:12} but upstream HEAD is ${ss_head:0:12} — bump SKILLSPECTOR_REF and tools.lock if the changelog warrants it (advisory: does not fail this check)."
-  row "skillspector" "${ss_pinned:0:12}" "${ss_head:0:12}" "behind (advisory, tracks HEAD)"
+ss_latest="$(gh_latest NVIDIA/SkillSpector)"
+if [ -z "$ss_latest" ]; then
+  echo "::warning::skillspector: could not resolve the latest release upstream (check skipped, NOT verified current)."
+  row "skillspector" "$ss_pinned" "?" "could not resolve"
+elif [ "$ss_pinned" != "$ss_latest" ]; then
+  echo "::warning::skillspector pinned at $ss_pinned but $ss_latest is available — bump tools.lock and SKILLSPECTOR_REF together, then re-measure tests/fixtures (docs/threats/developer-execution.md)."
+  row "skillspector" "$ss_pinned" "$ss_latest" "**behind** (bump by hand)"
+  DRIFTED=1
 else
-  echo "  skillspector: up to date (${ss_pinned:0:12})"
-  row "skillspector" "${ss_pinned:0:12}" "${ss_head:0:12}" "current"
+  echo "  skillspector: up to date ($ss_pinned)"
+  row "skillspector" "$ss_pinned" "$ss_latest" "current"
 fi
 
-# SkillSpector tracks HEAD, so it drifts on any upstream commit. That is expected
-# noise rather than a signal to bump on sight; weigh it against the changelog.
+# The lock records the version, the Dockerfile ARG records the bytes, and nothing
+# else checks that they still describe the same commit. A half-bump reads as green.
+ss_ref="$(sed -n 's/^ARG SKILLSPECTOR_REF=\([0-9a-f]\{40\}\).*/\1/p' \
+  "$(dirname "$0")/../toolbox/skill-audit/Dockerfile" | head -1)"
+ss_tag_sha="$(gh api "repos/NVIDIA/SkillSpector/commits/v${ss_pinned}" --jq '.sha' 2>/dev/null)"
+if [ -z "$ss_ref" ]; then
+  echo "::warning::skillspector: could not read SKILLSPECTOR_REF from toolbox/skill-audit/Dockerfile (lock/ARG agreement NOT verified)."
+elif [ -z "$ss_tag_sha" ]; then
+  echo "::warning::skillspector: could not resolve tag v${ss_pinned} upstream (lock/ARG agreement NOT verified)."
+elif [ "$ss_ref" != "$ss_tag_sha" ]; then
+  echo "::error::skillspector: tools.lock says ${ss_pinned} (v${ss_pinned} = ${ss_tag_sha:0:12}) but SKILLSPECTOR_REF is ${ss_ref:0:12}. The record and the installed bytes disagree."
+  DRIFTED=1
+fi
+
 if [ "$DRIFTED" -eq 1 ] && [ "$FAIL_ON_DRIFT" -eq 1 ]; then
   [ -n "$SUMMARY" ] && {
     echo "" >> "$SUMMARY"

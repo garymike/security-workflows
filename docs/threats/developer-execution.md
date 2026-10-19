@@ -16,8 +16,10 @@ to `localhost`.
 Skill scanners are scoped to the agent-execution surface (`SKILL.md` plus agent-invoked scripts).
 SkillSpector does see a `.husky/` payload and does gate on exit code: it exits 1 above a
 `risk_score` of 50 (`DO_NOT_INSTALL`), and it blocks the same payload class in a `.test.ts`
-carrier at 73/100. It scores the git-hook carrier 28/100 (`CAUTION`) and exits 0, because it
-classifies `.husky/pre-commit` as non-executable, so a CI gate on exit codes lets it through.
+carrier at 64/100 and the git-hook carrier at 76/100. As of v2.13.0 it blocks both, so on this
+profile's two original carriers the field has caught up; `gate-proof.sh` prints the live numbers
+on every build. What it still clears is the persistent-memory-write carrier: 0/100 `SAFE`, "no
+security issues detected", so a CI gate on exit codes lets that one through.
 The research state of the art excludes the surface by scope.
 
 ## How this platform stops it
