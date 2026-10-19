@@ -8,7 +8,7 @@
 betterleaks        1.9.0     github:betterleaks/betterleaks      # secret scanning (drop-in gitleaks successor)
 trufflehog         3.99.3    github:trufflesecurity/trufflehog   # verified-secret scanning
 osv-scanner        2.7.0     github:google/osv-scanner           # dependency CVEs
-syft               1.54.1    github:anchore/syft                 # SBOM generation
+syft               1.55.0    github:anchore/syft                 # SBOM generation
 #
 # --- mcp-review-toolbox (= security-toolbox-base + these) ---
 pip-audit          2.10.1    pypi:pip-audit                      # Python dependency audit
