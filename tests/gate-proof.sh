@@ -5,16 +5,24 @@
 #   1 (BLOCK)   gate MUST block gecko-demo, the test-file vector (malice in a *.test.ts).
 #   2 (BLOCK)   gate MUST block gecko-hook-demo, the git-hook vector (malice in .husky/pre-commit).
 #   3 (CLEAR)   gate MUST NOT block benign-skill (presence != malice, a legit bundled test is not a finding).
-#   4 (COVERAGE) HARD: SkillSpector's carrier coverage, pinned in BOTH directions. It is not blind and it
-#               is not advisory: it gates on exit code (exit 1 above risk_score 50), and it DOES block
-#               gecko-demo, the .test.ts carrier, at 73/100 (HIGH, DO NOT INSTALL). It does NOT block
-#               gecko-hook-demo, the .husky/pre-commit carrier, at 28/100 (CAUTION, exit 0), even though
-#               it finds the same payload there (PE3 credential access, 90% confidence): it classifies the
-#               hook as Executable=No. So a CI pipeline that trusts exit codes ships the git-hook skill
-#               with SkillSpector alone. The gate blocks both carriers. Asserting both halves means a
-#               change in EITHER direction goes red and we re-measure before touching the docs. (The
-#               research SOTA excludes the surface entirely by scope: arXiv 2601.10338 scans SKILL.md +
-#               invoked scripts; 2607.02357 detonates the agent path, not `npm test`.)
+#   4 (COVERAGE) HARD on the one carrier upstream still misses, OBSERVED on the rest.
+#               As of SkillSpector v2.13.0 the original differentiator is mostly gone, and that is
+#               recorded here rather than worked around. It blocks gecko-demo (64/100), gecko-hook-demo
+#               (76/100), config-injection-demo (100/100) and sibling-config-demo (51/100). Those four
+#               are PRINTED, not asserted: sibling-config-demo clears the risk_score-50 threshold by a
+#               single point, so hard-asserting it would turn this gate red on any minor upstream
+#               rescoring, which is the cry-wolf signal we avoid elsewhere.
+#               What IS hard-asserted: SkillSpector must NOT block memory-poisoning-demo. It scores it
+#               0/100 SAFE, "no security issues detected", at Coverage 100.0% with the test file typed
+#               Executable=Yes — so it read the file, analysed it, and cleared it. Measured mechanism vs
+#               content: the identical appendFileSync to MEMORY.md scores 0/100 with an inert payload and
+#               35/100 with a literal injection string, against 27/100 for that same string sitting in
+#               SKILL.md prose with no write at all. The write to persistent agent memory is worth ~8
+#               points of prose matching and is not modelled; neither variant blocks. That is the last
+#               carrier the gate uniquely covers, so if this assertion ever flips, the gate's remaining
+#               justification is gone and docs/ must say so. (The research SOTA excludes the surface
+#               entirely by scope: arXiv 2601.10338 scans SKILL.md + invoked scripts; 2607.02357
+#               detonates the agent path, not `npm test`.)
 #   5 (BLOCK)   gate MUST block config-injection-demo, the agent's own auto-run config (CVE-2025-59536).
 #   6 (CLEAR)   gate MUST NOT block config-injection-benign (npx MCP + an innocuous hook warn, do not fail).
 #   7 (BLOCK)   gate MUST block memory-poisoning-demo, a write to persistent agent memory (Snyk ToxicSkills).
@@ -31,7 +39,20 @@ IMAGE="${1:-${GATE_IMAGE:-skill-audit-toolbox:ci}}"
 FIX="$(cd "$(dirname "$0")/fixtures" && pwd)"
 fail=0
 gate() { docker run --rm -e GATE_NO_EXCLUDES=1 -v "$FIX/$1:/skill:ro" "$IMAGE" skill-testfile-gate /skill; }
-ss()   { docker run --rm -v "$FIX/$1:/skill:ro" "$IMAGE" skillspector scan /skill --no-llm >/dev/null 2>&1; }
+# SkillSpector v2.11+ classifies a file as executable partly on `mode & 0o111`, so the
+# scan has to see git-accurate permissions. A bind mount from a non-POSIX host (podman
+# on Windows presents everything as 777) would type SKILL.md and every .json as
+# executable and inflate the score, making a local run disagree with CI. Copy into the
+# container and force dirs 755 / files 644 so both agree. Prints the score; the caller
+# gets SkillSpector's exit code.
+ss_scan() {
+  docker run --rm -v "$FIX/$1:/skill:ro" "$IMAGE" sh -c '
+    W=${TMPDIR:-/tmp}/ss; rm -rf "$W"; mkdir -p "$W"; cp -r /skill/. "$W"/
+    find "$W" -type d -exec chmod 755 {} + ; find "$W" -type f -exec chmod 644 {} +
+    skillspector scan "$W" --no-llm 2>&1' 2>/dev/null
+}
+ss() { ss_scan "$1" >/dev/null 2>&1; }
+ss_score() { ss_scan "$1" 2>/dev/null | sed -n 's/.*Score *\([0-9]\{1,\}\)\/100.*/\1/p' | head -1; }
 
 echo "== 1. gate MUST block the test-file vector (gecko-demo) =="
 if gate gecko-demo; then echo "  FAIL: not blocked"; fail=1; else echo "  PASS: blocked"; fi
@@ -45,20 +66,32 @@ echo "== 3. gate MUST NOT block the benign skill =="
 if gate benign-skill; then echo "  PASS: not blocked (presence != malice)"; else echo "  FAIL: false positive"; fail=1; fi
 
 echo ""
-echo "== 4. carrier coverage (HARD): the gate blocks both carriers, SkillSpector blocks only one =="
-# The gate must exit nonzero (enforce) on the git-hook vector.
-if gate gecko-hook-demo >/dev/null 2>&1; then gate_enforces=0; else gate_enforces=1; fi
-# SkillSpector must BLOCK the .test.ts carrier (73/100) and CLEAR the .husky/ carrier (28/100), even though
-# it finds the same payload in both. Pin both halves: if either flips, its coverage moved and the docs that
-# quote these numbers need re-measuring before they are trusted again.
-if ss gecko-demo;      then ss_blocks_testfile=0; else ss_blocks_testfile=1; fi
-if ss gecko-hook-demo; then ss_blocks_hook=0;     else ss_blocks_hook=1; fi
-if [ "$gate_enforces" -eq 1 ] && [ "$ss_blocks_hook" -eq 0 ] && [ "$ss_blocks_testfile" -eq 1 ]; then
-  echo "  PASS: SkillSpector blocks the .test.ts carrier and clears the .husky/ one; the gate blocks both."
-  echo "        An exit-code CI gate would let the git-hook skill through with SkillSpector alone."
+echo "== 4. carrier coverage: where SkillSpector has caught up, and the one carrier left =="
+# Observation first: print SkillSpector's live verdict on every malicious fixture, so the
+# build log carries the real comparison instead of numbers copied into a doc months ago.
+printf "  %-24s %-9s %s\n" FIXTURE SCORE "SKILLSPECTOR"
+for fx in gecko-demo gecko-hook-demo config-injection-demo sibling-config-demo memory-poisoning-demo; do
+  if ss "$fx"; then verdict="exit 0, does NOT block"; else verdict="exit 1, BLOCKS"; fi
+  printf "  %-24s %-9s %s\n" "$fx" "$(ss_score "$fx")/100" "$verdict"
+done
+
+# The single hard assertion: memory-poisoning-demo is the last carrier the gate uniquely
+# covers. SkillSpector reads the file, types it executable, reports 100% coverage, and
+# clears it at 0/100 SAFE. The gate blocks it. If EITHER half flips, the gate's remaining
+# justification has changed and docs/ must be re-measured before they are trusted.
+if gate memory-poisoning-demo >/dev/null 2>&1; then gate_enforces=0; else gate_enforces=1; fi
+if ss memory-poisoning-demo; then ss_blocks_mem=0; else ss_blocks_mem=1; fi
+if [ "$gate_enforces" -eq 1 ] && [ "$ss_blocks_mem" -eq 0 ]; then
+  echo "  PASS: SkillSpector clears the persistent-memory-write carrier; the gate blocks it."
+  echo "        An exit-code CI gate would install that skill with SkillSpector alone."
 else
-  echo "  FAIL: expected gate=1 ss_hook=0 ss_testfile=1; got gate=$gate_enforces ss_hook=$ss_blocks_hook ss_testfile=$ss_blocks_testfile."
-  echo "        SkillSpector's carrier coverage changed. Re-measure both fixtures, then fix docs/ to match."; fail=1
+  echo "  FAIL: expected gate=1 ss_mem=0; got gate=$gate_enforces ss_mem=$ss_blocks_mem."
+  if [ "$ss_blocks_mem" -eq 1 ]; then
+    echo "        SkillSpector now blocks the memory-write carrier too. That was the gate's last"
+    echo "        uniquely-covered carrier: re-measure every fixture and say so in docs/, per the"
+    echo "        sunset rule in README.md, rather than finding a new way to word the claim."
+  fi
+  fail=1
 fi
 
 echo ""

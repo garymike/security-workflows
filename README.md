@@ -22,15 +22,32 @@ without moving the story.
 
 A malicious agent skill can ship a clean `SKILL.md` and still steal your SSH keys the moment you
 run the project's tests, because the payload rides in a bundled test file or git hook that your
-toolchain auto-runs, outside the agent. Scanner coverage of that surface is uneven: SkillSpector
-blocks our demo payload in a `.test.ts` file (73/100, `DO NOT INSTALL`, exit 1) but clears the
-same payload class in a `.husky/pre-commit` hook (28/100, exit 0), because it classifies a git
-hook as non-executable. The first-party
-[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) fails the build on both. The
-same gate now covers auto-run agent config across Claude Code (`.claude/settings.json` Hooks,
-`.mcp.json` servers, CVE-2025-59536), Cursor (`.cursor/mcp.json`, CVE-2025-54136; `.cursor/hooks.json`
-by structural analogy), and VS Code (`.vscode/tasks.json` run silently on open, a disclosed and
-now-fixed security issue): the config-injection class. The runtime pillar, an MCP review compiled
+toolchain auto-runs, outside the agent. That surface is what the first-party
+[`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh) was built to fail the build
+on, across the test-file and git-hook carriers and the config-injection class in Claude Code
+(`.claude/settings.json` Hooks, `.mcp.json` servers, CVE-2025-59536), Cursor (`.cursor/mcp.json`,
+CVE-2025-54136; `.cursor/hooks.json` by structural analogy) and VS Code (`.vscode/tasks.json` run
+silently on open, a disclosed and now-fixed issue).
+
+**Most of that gap has since closed, and this repo says so rather than rewording the claim.**
+Measured on every build against our own fixtures ([`gate-proof.sh`](tests/gate-proof.sh) prints
+the live table), SkillSpector v2.13.0 blocks four of the five: the test-file carrier (64/100), the
+git-hook carrier (76/100), Claude config-injection (100/100) and the Cursor/VS Code bundle
+(51/100). Two things are left, and they are narrower than what this section used to claim:
+
+- **One carrier it still clears.** A bundled test file that appends to `MEMORY.md`, the agent's
+  persistent cross-session memory, scores **0/100 `SAFE`, "no security issues detected"** at
+  `Coverage 100.0%` with the file typed `Executable: Yes`. It is read, analysed, and passed. The
+  write itself is not modelled: the same `appendFileSync` scores 0/100 with an inert payload and
+  35/100 with a literal injection string, against 27/100 for that string sitting inertly in
+  `SKILL.md` prose with no write at all. Neither variant blocks.
+- **A score threshold is not a gate.** The Cursor/VS Code bundle clears 50 by a single point, and
+  `.vscode/tasks.json` contributes none of it: all 51 comes from the two `.cursor/` files, and the
+  `runOn: folderOpen` + `reveal: silent` task yields zero findings. The gate blocks on a malice
+  pattern in a named file and emits SARIF per finding, so it does not depend on a holistic score
+  landing the right side of a line.
+
+The config-injection class is still the gate's own coverage. The runtime pillar, an MCP review compiled
 into a firewall, is the assess-to-enforce gateway in
 [security-agents](https://github.com/garymike/security-agents).
 
@@ -51,9 +68,9 @@ Both, and which is which is deliberate.
 
 **Blocks the build.** The first-party [`skill-testfile-gate`](toolbox/skill-audit/skill-testfile-gate.sh)
 exits non-zero on malice, in `skill-audit.yml` and in the pre-commit hook. That is the whole point
-of the project: on the carriers it covers, the published scanners report the payload and still
-exit 0 (SkillSpector scores our git-hook demo 28/100, under its own block threshold of 50), so a
-CI gate on exit codes lets the payload through. It also fails on the config-injection class
+of the project: where a published scanner reports a payload and still exits 0, a CI gate on exit
+codes ships it. SkillSpector has closed most of that gap (see above); the case it still clears is
+our persistent-memory-write demo, at 0/100 `SAFE`. It also fails on the config-injection class
 (`.claude/settings.json` Hooks, `.mcp.json`, `.cursor/`, `.vscode/tasks.json`).
 
 **Reports to code scanning.** `sast.yml`, `codeql.yml`, and `iac-security.yml` emit SARIF and let
@@ -151,7 +168,7 @@ source of truth. Without Docker Desktop, use the `skill-testfile-gate-any` hook.
 | | What | Why |
 |---|---|---|
 | **Adopted** (best-in-class, pinned and signed) | Semgrep, CodeQL, Checkov, betterleaks, trufflehog, SkillSpector, Anthropic's AI review, plus pipelock and OPA in security-agents | Do not reinvent a solved problem. Each is pinned by digest or SHA, SBOM'd, and cosign-signed. |
-| **First-party** (only where the field has a gap) | the enforcing gate for the developer-execution and config-injection surface (this repo); the assess-to-enforce compiler and engine-neutral policy contract (security-agents) | Build only where the field's coverage stops. |
+| **First-party** (only where the field has a gap) | the enforcing gate for the developer-execution and config-injection surface (this repo); the assess-to-enforce compiler and engine-neutral policy contract (security-agents) | Build only where the field's coverage stops, and retire it when the field catches up. Four of the gate's five carriers are now blocked upstream too; `gate-proof.sh` hard-asserts the one that is not, so the day it closes, this row has to shrink. |
 | **Modular** (the mechanism) | the `mcp-runtime-policy` contract with swappable adapters, layered signed images, composable reusable workflows | So the two rows above can evolve while the story does not. |
 
 When an upstream tool grows to cover a first-party gap, the first-party code is meant to be retired

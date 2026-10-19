@@ -5,8 +5,9 @@
 # the signed base.
 #   = base + SkillSpector (agent-skill scanner: prompt injection, tool poisoning, data exfil,
 #     excessive agency) + a first-party test-file GATE for the DEVELOPER-execution surface.
-#     SkillSpector's reach into that surface is carrier-dependent: it blocks a .test.ts payload
-#     (73/100) and clears the same class in .husky/pre-commit (28/100, exit 0). The gate blocks both.
+#     SkillSpector v2.13.0 blocks most of that surface too (test-file 64/100, git-hook 76/100,
+#     config-injection 100/100 and 51/100); it clears a write to persistent agent memory at 0/100.
+#     The gate blocks every carrier, on the pattern rather than on a score threshold.
 # STATIC ANALYSIS ONLY. See docs/threat-model.md for the coverage map + residual gaps.
 #
 # BASE is pinned by digest in CI. SkillSpector ships no PyPI release or tags, so it is
@@ -16,8 +17,9 @@
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
-# NVIDIA/SkillSpector, pinned by commit (no releases upstream).
-ARG SKILLSPECTOR_REF=c2d09df019e358d3dc12d980b82c798b87cb9f56
+# NVIDIA/SkillSpector. No PyPI package, so it is installed from git; pinned to the
+# commit a RELEASE TAG points at, not to a moving HEAD. v2.13.0 = 091a509b3d6b.
+ARG SKILLSPECTOR_REF=091a509b3d6ba8ff5be528966e1f43c2e68cf214
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
 ARG SEMGREP_VERSION=1.181.0

@@ -20,14 +20,15 @@ Wild*, arXiv 2601.10338; Snyk ToxicSkills).
 
 A skill package touches two execution surfaces. Skill scanners inspect the first natively. Their
 reach into the second is partial and depends on the carrier: SkillSpector blocks a `.test.ts`
-payload (73/100, exit 1) but clears the same payload class in `.husky/pre-commit` (28/100, exit
-0), which it classifies as non-executable. The research state of the art excludes the second
-surface entirely, by scope:
+payload (64/100), the same class in `.husky/pre-commit` (76/100), Claude config-injection
+(100/100) and the Cursor/VS Code bundle (51/100) as of v2.13.0, and clears a write to persistent
+agent memory at 0/100 `SAFE`. The research state of the art excludes the second surface entirely,
+by scope:
 
 | Surface | What runs it | What we run | Residual gap |
 |---|---|---|---|
 | **Agent-execution**: `SKILL.md`, agent-invoked scripts, tool definitions | the agent, at use time | **SkillSpector** (prompt injection, tool poisoning, data exfil, excessive agency, AST/taint/YARA) | evadable by novel packing or obfuscation (see below) |
-| **Developer-execution**: `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, npm lifecycle scripts, git hooks, agent config-injection (`.claude/settings.json` Hooks + `.mcp.json` server commands + `.claude/hooks/*`, CVE-2025-59536), `.pth`/`sitecustomize`. Anything auto-run without the developer choosing to run that file ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain: test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git, on install or CI, no agent involved | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) plus a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). Skill-scanner coverage here is carrier-dependent (SkillSpector blocks a `.test.ts` payload at 73/100 but clears the same class in `.husky/pre-commit` at 28/100, exit 0, having classified the hook as non-executable); the gate enforces on every carrier in the list (exit 1). | evadable by an adaptive author, so WARNING findings **escalate to a sandboxed Tier-2 run**; the surface file list stays heuristic |
+| **Developer-execution**: `*.test.*`/`*.spec.*`/`conftest.py`/`__tests__/`, test-build config, npm lifecycle scripts, git hooks, agent config-injection (`.claude/settings.json` Hooks + `.mcp.json` server commands + `.claude/hooks/*`, CVE-2025-59536), `.pth`/`sitecustomize`. Anything auto-run without the developer choosing to run that file ([ADR-0011](adr/0011-developer-execution-surface-boundary.md)) | the **developer's** toolchain: test runner (Jest/Vitest/Mocha/pytest), package manager (`npm install`), git, on install or CI, no agent involved | **`skill-testfile-gate`** (first-party): filename **inventory** (presence, low) plus a Semgrep **malice** rule pack (credential reads, `curl\|bash`, decode-and-exec, reverse shells, obfuscation) that **blocks** and emits **SARIF** ([ADR-0010](adr/0010-first-party-dev-exec-rule-pack.md), [0012](adr/0012-layered-severity-and-sarif.md)). SkillSpector v2.13.0 blocks most of this surface too (test-file 64/100, git-hook 76/100, config-injection 100/100 and 51/100) and clears the persistent-memory write at 0/100 `SAFE`; the gate enforces on every carrier in the list (exit 1), on the write itself rather than on a score threshold. | evadable by an adaptive author, so WARNING findings **escalate to a sandboxed Tier-2 run**; the surface file list stays heuristic |
 | **Time-of-use**: a skill that points the agent at an external URL fetched after review | the network, later | not a scanning problem | answered by commit-pinning, not by scanning |
 
 The developer-execution row is this repo's original contribution. Gecko Security (2026)
@@ -93,5 +94,5 @@ Full citations, with arXiv IDs, URLs, and what each is cited for, live in
 - Gecko Security: the bundled test-file vector (developer-execution surface).
 - *SkillCloak*: self-extracting packing that evades static skill scanners.
 - OWASP Agentic Skills Top 10: pin-to-commit and verify-on-every-change guidance.
-- NVIDIA SkillSpector: the skill scanner this image wraps (it gates above a `risk_score` of 50; it blocks our test-file demo at 73/100 and clears our git-hook demo at 28/100).
+- NVIDIA SkillSpector: the skill scanner this image wraps (it gates above a `risk_score` of 50; it blocks four of our five malicious fixtures and clears the persistent-memory-write one at 0/100). Live numbers: [`gate-proof.sh`](../tests/gate-proof.sh).
 - Check Point [ConfigInjection]: CVE-2025-59536 and CVE-2026-21852, `.claude` Hooks and MCP config-injection on open.

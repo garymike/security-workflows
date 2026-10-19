@@ -19,8 +19,10 @@ zizmor             1.31.1    pypi:zizmor                         # GitHub Action
 actionlint         1.7.12    github:rhysd/actionlint             # GitHub Actions linter (+ shellcheck)
 #
 # --- skill-audit-toolbox (= security-toolbox-base + these) ---
-# SkillSpector ships no PyPI release or tags, so it is pinned by commit SHA.
-skillspector       c2d09df019e358d3dc12d980b82c798b87cb9f56  github:NVIDIA/SkillSpector  # Anthropic Skill / agent scanner (pinned by commit)
+# SkillSpector has no PyPI package, so it is installed from git. The version below is
+# the release tag; SKILLSPECTOR_REF in toolbox/skill-audit/Dockerfile is the commit that
+# tag points at, and check-tool-updates.sh verifies the two still agree.
+skillspector       2.13.0    github:NVIDIA/SkillSpector          # Anthropic Skill / agent scanner (git @ tag v2.13.0 = 091a509b3d6b)
 semgrep            1.181.0   pypi:semgrep                        # test-file-gate malice engine (same pin as sast-toolbox)
 pyjwt              2.15.1    pypi:pyjwt                          # override: semgrep pins ~=2.13.0 = CVE-2026-102268
 #
