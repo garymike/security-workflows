@@ -6,7 +6,7 @@
 #
 # --- security-toolbox-base (generic spine, shared by every domain image) ---
 betterleaks        1.9.0     github:betterleaks/betterleaks      # secret scanning (drop-in gitleaks successor)
-trufflehog         3.99.2    github:trufflesecurity/trufflehog   # verified-secret scanning
+trufflehog         3.99.3    github:trufflesecurity/trufflehog   # verified-secret scanning
 osv-scanner        2.7.0     github:google/osv-scanner           # dependency CVEs
 syft               1.54.1    github:anchore/syft                 # SBOM generation
 #
