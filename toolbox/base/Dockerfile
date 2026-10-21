@@ -74,6 +74,8 @@ RUN set -eux; \
 # --------------------------------------------------------------------------- #
 FROM python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
 
+ARG PIP_VERSION=26.2.2
+
 LABEL org.opencontainers.image.title="security-toolbox-base" \
       org.opencontainers.image.description="Generic pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \
       org.opencontainers.image.source="https://github.com/garymike/security-workflows" \
@@ -85,6 +87,22 @@ RUN set -eux; \
     apt-get update; \
     apt-get install -y --no-install-recommends git ca-certificates; \
     rm -rf /var/lib/apt/lists/*
+
+# pip vendors its own copy of certifi, which `pip install` cannot reach: the base image's pip
+# shipped certifi 2026.6.17, and GHSA-6q48-6c7w-9gw2 (CRITICAL) is that certifi bundling emSign
+# root CAs whose intermediate keys were compromised. The site-packages certifi that the scanners
+# actually import resolves to a fixed release on its own; the vendored one only moves when pip
+# does. pip 26.2.2 vendors certifi 2026.10.19, which is the fixed version, so this is a fix
+# rather than a VEX exception: the rule in .trivy/toolbox.openvex.json is that a fixable finding
+# is fixed, not excepted.
+#
+# Pinned and listed in toolbox/tools.lock like every other tool, so the drift gate tracks it and
+# apply-tool-bumps.py can move it (the ARG name matches its <TOOL>_VERSION convention). Done in
+# the base final stage because all five domain images inherit from here, and the vulnerable copy
+# came from the shared python base layer rather than from anything they install.
+RUN set -eux; \
+    pip install --no-cache-dir --upgrade "pip==${PIP_VERSION}"; \
+    pip --version
 
 RUN set -eux; \
     groupadd --system toolbox; \
