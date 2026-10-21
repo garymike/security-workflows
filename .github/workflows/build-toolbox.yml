@@ -89,7 +89,26 @@ jobs:
         env:
           IMAGE: ${{ steps.prep.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        # A rebuild whose inputs did not change produces a byte-identical digest, and Rekor
+        # rejects a second equivalent entry for it with 409 createLogEntryConflict. That is not a
+        # signing failure: the entry it conflicts with IS this digest's signature, already in the
+        # log from the earlier run. #86's build went red on exactly that, because toolbox/gha was
+        # unchanged, and a red domain arm then skipped the pins job below, so a reproducible
+        # rebuild could silence the very check that watches the pins.
+        #
+        # Matched on createLogEntryConflict specifically rather than on any non-zero exit, so a
+        # real signing failure (no OIDC token, registry refusal, Fulcio down) still fails the step.
+        run: |
+          if out="$(cosign sign --yes "${IMAGE}@${DIGEST}" 2>&1)"; then
+            printf '%s\n' "$out"
+            exit 0
+          fi
+          printf '%s\n' "$out"
+          if printf '%s' "$out" | grep -q 'createLogEntryConflict'; then
+            echo "::notice::${IMAGE}@${DIGEST} is already in the transparency log (Rekor 409). The rebuild was reproducible, so the existing entry is this image's own signature."
+            exit 0
+          fi
+          exit 1
 
       # Hand the digest to the `pins` job. steps.build.outputs.digest is the authority, not the
       # registry: a `latest` index carrying attestations reports a different digest than the image
@@ -199,7 +218,26 @@ jobs:
         env:
           IMAGE: ${{ steps.prep.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        run: cosign sign --yes "${IMAGE}@${DIGEST}"
+        # A rebuild whose inputs did not change produces a byte-identical digest, and Rekor
+        # rejects a second equivalent entry for it with 409 createLogEntryConflict. That is not a
+        # signing failure: the entry it conflicts with IS this digest's signature, already in the
+        # log from the earlier run. #86's build went red on exactly that, because toolbox/gha was
+        # unchanged, and a red domain arm then skipped the pins job below, so a reproducible
+        # rebuild could silence the very check that watches the pins.
+        #
+        # Matched on createLogEntryConflict specifically rather than on any non-zero exit, so a
+        # real signing failure (no OIDC token, registry refusal, Fulcio down) still fails the step.
+        run: |
+          if out="$(cosign sign --yes "${IMAGE}@${DIGEST}" 2>&1)"; then
+            printf '%s\n' "$out"
+            exit 0
+          fi
+          printf '%s\n' "$out"
+          if printf '%s' "$out" | grep -q 'createLogEntryConflict'; then
+            echo "::notice::${IMAGE}@${DIGEST} is already in the transparency log (Rekor 409). The rebuild was reproducible, so the existing entry is this image's own signature."
+            exit 0
+          fi
+          exit 1
 
       - name: Record the digest that was published
         env:
@@ -218,6 +256,10 @@ jobs:
   pins:
     name: Reusable-workflow image pins match what was published
     needs: [base, domain]
+    # Runs even when an arm of the build failed. Without this, one red domain arm skips the check
+    # entirely, which is how #86 published five images with nobody comparing the pins. An image
+    # that did not publish is reported as not checked rather than counted as current.
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -268,6 +310,13 @@ jobs:
           }
 
           ls digests/*.txt >/dev/null 2>&1 || { echo "::error::no digest files were produced, so the pins were NOT verified"; exit 1; }
+
+          # Every image this workflow publishes. A missing digest file means that arm did not get
+          # as far as publishing, so there is nothing to compare: say so loudly instead of letting
+          # a short list read as a clean sweep.
+          for expected in security-toolbox-base gha-toolbox sast-toolbox iac-toolbox skill-audit-toolbox mcp-review-toolbox; do
+            [ -f "digests/${expected}.txt" ] || echo "::warning::${expected} published no digest in this run, so its pin was NOT checked."
+          done
 
           stale=0
           {
