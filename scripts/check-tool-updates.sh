@@ -92,6 +92,7 @@ check betterleaks     "$(pinned betterleaks)"     "$(gh_latest betterleaks/bette
 check trufflehog      "$(pinned trufflehog)"      "$(gh_latest trufflesecurity/trufflehog)"
 check osv-scanner     "$(pinned osv-scanner)"     "$(gh_latest google/osv-scanner)"
 check syft            "$(pinned syft)"            "$(gh_latest anchore/syft)"
+check pip             "$(pinned pip)"             "$(pypi_latest pip)"
 check pip-audit       "$(pinned pip-audit)"       "$(pypi_latest pip-audit)"
 check snyk-agent-scan "$(pinned snyk-agent-scan)" "$(pypi_latest snyk-agent-scan)"
 check zizmor          "$(pinned zizmor)"          "$(pypi_latest zizmor)"
