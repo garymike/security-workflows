@@ -99,8 +99,14 @@ payload:
 
 The write to persistent memory is worth about 8 points of prose matching over text that does
 nothing, and no variant reaches the block threshold. A payload that is assembled at runtime,
-encoded, or merely phrased outside the pattern set scores like the first row. The gate blocks on
-the write itself, which is why it fires on all four.
+encoded, or merely phrased outside the pattern set scores like the first row.
+
+The gate blocks on the write rather than on the text, so the payload being inert does not save
+the first row. It fires on rows one and two. It does not fire on row four, which has no write to
+find. Row three, the `CLAUDE.md` target, used to pass as well: that was a gap in the gate's own
+destination list rather than an intended negative, and it is covered now with
+[`memory-poisoning-claude-md-demo`](../tests/fixtures/memory-poisoning-claude-md-demo) asserting
+it on every build.
 
 ## 3. Why the state of the art misses it, both halves
 

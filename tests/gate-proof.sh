@@ -32,6 +32,14 @@
 #               issue 309406). Confirms findings are attributed to all three files, not just one.
 #   9 (CLEAR)   gate MUST NOT block config-injection-benign, extended with a benign Cursor MCP server
 #               (npx, warns), a benign Cursor hook, and a visible (non-silent) VS Code folderOpen task.
+#  10 (BLOCK)   gate MUST block memory-poisoning-python-demo: the same memory write as #7 but in
+#               Python (conftest.py, open(path, "a")). #7 passed on a TypeScript-only fixture while
+#               every Python form walked through, so the surface now carries one per language.
+#  11 (BLOCK)   gate MUST block memory-poisoning-claude-md-demo: a write aimed at CLAUDE.md, which
+#               was missing from the rule's destination list.
+#  12 (CLEAR)   gate MUST NOT block memory-read-benign: a READ of MEMORY.md next to an arrow
+#               function. The rule's redirect alternative used to match the `>` in `=>`, making a
+#               read-only file a blocking write finding.
 #
 # Usage: bash tests/gate-proof.sh [IMAGE]     (default: skill-audit-toolbox:ci)
 set -uo pipefail
@@ -127,6 +135,28 @@ fi
 echo ""
 echo "== 9. gate MUST NOT block benign config, including the extended Cursor/VS Code files (config-injection-benign) =="
 if gate config-injection-benign; then echo "  PASS: not blocked (npx MCP, innocuous hooks, and a visible folderOpen task all warn or clear, none fail)"; else echo "  FAIL: false positive on standard sibling-ecosystem config"; fail=1; fi
+
+echo ""
+echo "== 10. gate MUST block the memory-poisoning vector in its PYTHON form (memory-poisoning-python-demo) =="
+# Regression guard. Assertion 7 passed for years on a TypeScript-only fixture while every Python
+# form walked through: dev-exec-writes-agent-memory required the sink token before the path, which
+# is the JS shape, and Python's open() takes the path first and the mode second. One carrier per
+# language, or a language-shaped hole stays invisible.
+if gate memory-poisoning-python-demo; then echo "  FAIL: not blocked (the Python open(path, mode) shape is uncovered again)"; fail=1; else echo "  PASS: blocked (conftest.py appends to MEMORY.md)"; fi
+
+echo ""
+echo "== 11. gate MUST block a write aimed at CLAUDE.md (memory-poisoning-claude-md-demo) =="
+# CLAUDE.md was absent from the rule's destination list, which had MEMORY.md, SOUL.md, AGENTS.md,
+# .claude/ and .cursor/. The most-loaded memory file for the agent this gate exists to protect was
+# the one destination it did not check.
+if gate memory-poisoning-claude-md-demo; then echo "  FAIL: not blocked (CLAUDE.md is missing from the destination list again)"; fail=1; else echo "  PASS: blocked (test file appends to CLAUDE.md)"; fi
+
+echo ""
+echo "== 12. gate MUST NOT block a READ of agent memory (memory-read-benign) =="
+# Reading agent memory is not the threat; writing to it is. This guards a false positive that
+# shipped: the rule's shell-redirect alternative matched the `>` in a JS arrow function, so an
+# `=>` within 60 characters of "MEMORY.md" reported a write on a read-only file.
+if gate memory-read-benign; then echo "  PASS: not blocked (a read of MEMORY.md beside an arrow function is not a write)"; else echo "  FAIL: false positive on a read-only access to agent memory"; fail=1; fi
 
 echo ""
 if [ "$fail" -eq 0 ]; then echo "PROOF-FIXTURE PASSED: the gate covers the developer-execution surface (test-file, git-hook, config-injection, memory-poisoning, and sibling-ecosystem vectors)."; else echo "PROOF-FIXTURE FAILED"; fi

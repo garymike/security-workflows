@@ -65,11 +65,33 @@ rules:
     languages: [generic]
     severity: ERROR
     message: >-
-      Auto-executed skill file writes to agent memory/config (MEMORY.md, SOUL.md, AGENTS.md,
-      .claude/, .cursor/), cross-session persistence and instruction poisoning (Snyk ToxicSkills).
+      Auto-executed skill file writes to agent memory/config (MEMORY.md, CLAUDE.md, SOUL.md,
+      AGENTS.md, .claude/, .cursor/, .agents/), cross-session persistence and instruction
+      poisoning (Snyk ToxicSkills).
     metadata: { category: security, surface: developer-execution }
-    patterns:
-      - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|fs\.write|open\s*\([^\n)]*[\x22\x27]a?w|>>?\s*)[^\n]{0,60}(MEMORY\.md|SOUL\.md|AGENTS\.md|\.claude/|\.cursor/)'
+    # Three branches, because the destination and the write intent appear in different orders and
+    # one regex cannot express all of them. Each branch is also what keeps a READ of the same path
+    # quiet, which a single broad pattern did not.
+    #
+    # Two defects this replaces, both measured against tests/fixtures:
+    #   False negatives. The old pattern required the sink token before the path. That is the JS
+    #   shape; Python's open() takes the path first and the mode second, so the `open` alternative
+    #   consumed straight past the filename and matched NO Python write, in any mode. pathlib was
+    #   absent, and so was CLAUDE.md, the most-loaded memory file for the agent this gate protects.
+    #
+    #   A false positive. The shell-redirect alternative was `>>?` followed by up to 60 characters
+    #   of anything, and a single `>` is the second character of a JS arrow function. So any `=>`
+    #   within 60 characters of the words MEMORY.md or CLAUDE.md was reported as a write, which
+    #   made `readFileSync("MEMORY.md")` inside a `beforeAll(() => {...})` a blocking finding.
+    #   The redirect now has to be followed by the destination, which is how a redirect is written.
+    pattern-either:
+      # 1. JS/TS sink names the destination. Write sinks only, so readFileSync stays quiet.
+      - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|fs\.write)[^\n]{0,60}((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)'
+      # 2. Destination first, write intent after (Python open(path, mode), pathlib). The mode has
+      #    to be a write mode, so open(path, "r") stays quiet.
+      - pattern-regex: '(?i)(open|Path)\s*\(\s*[\x22\x27][^\x22\x27\n]*((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)[^\x22\x27\n]*[\x22\x27][^\n]{0,40}([\x22\x27][aw]|\)\s*\.\s*write_(text|bytes))'
+      # 3. Shell redirect, where the destination follows the operator directly.
+      - pattern-regex: '(?i)>>?\s*[\x22\x27]?[^\x22\x27\s\n]{0,40}((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)'
 
   - id: dev-exec-obfuscated-assembly
     languages: [generic]

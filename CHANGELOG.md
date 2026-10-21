@@ -6,6 +6,55 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.1] - 2026-10-21
+
+### Fixed
+- **`dev-exec-writes-agent-memory` caught agent-memory writes only in JavaScript. Every Python
+  form walked through, and `CLAUDE.md` was not checked at all.** Found by building the boundary
+  fixtures from [NVIDIA/SkillSpector#879](https://github.com/NVIDIA/SkillSpector/issues/879)
+  against our own gate instead of only against theirs. Measured misses, all now blocked:
+  `open("MEMORY.md", "a")`, `open("MEMORY.md", "w")`, `Path("MEMORY.md").write_text(...)` and
+  `appendFileSync("CLAUDE.md", ...)`.
+
+  Two distinct causes. The pattern required the sink token to appear *before* the path, which is
+  the JS shape (`appendFileSync("MEMORY.md", ...)`); Python puts the path first and the mode
+  second, so the `open` alternative consumed straight past the filename and could never match a
+  Python write in any mode. Separately, the destination list held `MEMORY.md`, `SOUL.md`,
+  `AGENTS.md`, `.claude/` and `.cursor/`, so the most-loaded memory file for the agent this gate
+  exists to protect was the one destination it did not look for.
+
+  Assertion 7 had passed for months on a TypeScript-only fixture, which is exactly how a
+  language-shaped hole stays invisible. The surface now carries one fixture per language.
+- **The same rule reported a memory *write* on a file that only reads.** Its shell-redirect
+  alternative was `>>?` followed by up to 60 characters of anything, and a single `>` is the
+  second character of a JS arrow function, so any `=>` within 60 characters of the string
+  `MEMORY.md` was a blocking finding. `readFileSync("MEMORY.md")` inside a
+  `beforeAll(() => {...})` blocked. Confirmed pre-existing by running the control against the
+  published image before changing anything. The redirect branch now requires the destination to
+  follow the operator, which is how a redirect is written.
+
+  Reading agent memory is not the threat; writing to it is.
+
+### Added
+- **Three fixtures and three assertions**, one per defect above, so none can regress silently:
+  `memory-poisoning-python-demo` (10, blocks), `memory-poisoning-claude-md-demo` (11, blocks) and
+  `memory-read-benign` (12, must not block). Each fixture header records the specific defect it
+  guards rather than only what it does.
+
+### Changed
+- **Corrected a false claim in the Gecko walkthrough.** Step 6 ended "The gate blocks on the write
+  itself, which is why it fires on all four." It fires on two of the four rows. One miss is the
+  prose control, which has no write to find; the other was the `CLAUDE.md` row, which was the bug
+  above rather than an intended negative.
+- **Recorded two shapes that still pass**, in the threat profile's honest residual rather than as
+  assertions: a destination assembled rather than written out (`open("MEM" + "ORY" + ".md", "a")`)
+  and `open` reached through an indirection. Both need the path resolved rather than matched. They
+  are deliberately not asserted, because a test asserting the gate does *not* catch something
+  turns a weakness into expected behaviour, and whoever improves the rule would have to delete a
+  passing test to do it.
+
+---
+
 ## [1.7.0] - 2026-10-19
 
 ### Changed

@@ -37,3 +37,15 @@ SARIF. It covers every carrier in the list, including the ones scanner scoring l
 Static rules are a pre-filter, not a trust gate; an adaptive author can obfuscate past them
 ([SkillCloak]). WARNING findings escalate to a sandboxed run (the Tier-2 skill-auditor). A git-stage
 hook catches a skill that arrives through git, not one you download outside it.
+
+On the agent-memory-write carrier specifically, the gate matches a destination it can read as a
+literal. Two shapes measured as still passing, both one line to write:
+
+- a destination assembled rather than written out, `open("MEM" + "ORY" + ".md", "a")`
+- `open` reached through an indirection, so the call site has no filename in it
+
+Fixing those needs the path resolved rather than matched, which is a different kind of analysis
+than this rule pack does. They are not asserted in [`gate-proof.sh`](../../tests/gate-proof.sh) on
+purpose: an assertion that the gate does **not** catch something turns a weakness into expected
+behaviour, and the next person to improve the rule would have to delete a passing test to do it.
+Recorded here instead, where it reads as a limit rather than a feature.
