@@ -6,6 +6,43 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.2] - 2026-10-30
+
+### Fixed
+- **`dev-exec-writes-agent-memory` only matched a destination when the quote followed `open(`
+  immediately, so every Python string prefix walked through.** Measured misses, all now blocked:
+  `open(r"C:\Users\alice\MEMORY.md", "a")`, `open(rf"{base}\MEMORY.md", "a")`,
+  `open(f"{base}/MEMORY.md", "a")`, `open(R"MEMORY.md", "a")` and
+  `Path(r"C:\Users\MEMORY.md").write_text(...)`.
+
+  This was never a backslash problem on our side. The escaped form
+  `open("C:\\Users\\MEMORY.md", "a")` already matched, and still does. The prefix was the
+  whole cause, and a raw string is the natural spelling for a Windows path, so the uncovered
+  spelling was the likely one rather than an exotic one.
+
+  Found because [NVIDIA/SkillSpector#893](https://github.com/NVIDIA/SkillSpector/pull/893) was
+  sent back in review for the same class of bug in its own analyzer, which stripped the
+  backslashes rather than rejecting the prefix. Pointing an upstream finding at our own gate is
+  the same method that produced 1.7.1.
+- **The agent config directories were spelled with a hardcoded forward slash**, so
+  `.claude\settings.json` was uncovered on the one platform where a backslash is the normal
+  separator. All three branches now accept either. The same rule covers the memory files and the
+  config directories, so the gap applied to both.
+- **A filename that merely contained an agent-memory name was blocked.** `memory.md.bak`, a
+  backup that nothing loads into a session, and `MY_AGENTS.md`, a team roster, both produced a
+  blocking finding, because the basename was matched anywhere inside the string literal. A
+  basename now has to start the literal or follow a separator. Upstream lists `memory.md.bak` as
+  a quiet case in its own tests for the same reason.
+
+### Added
+- Four proof fixtures and four assertions in [`gate-proof.sh`](tests/gate-proof.sh), taking it
+  from 12 checks to 16. Three block (`memory-poisoning-raw-path-demo`,
+  `memory-poisoning-fstring-demo`, `memory-poisoning-win-config-demo`) and one must not
+  (`memory-near-miss-benign`). Each of the three defects above now has a fixture that fails
+  without its fix, so none of them can come back unnoticed.
+
+---
+
 ## [1.7.1] - 2026-10-21
 
 ### Fixed

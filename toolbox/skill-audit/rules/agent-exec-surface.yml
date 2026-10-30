@@ -69,29 +69,47 @@ rules:
       AGENTS.md, .claude/, .cursor/, .agents/), cross-session persistence and instruction
       poisoning (Snyk ToxicSkills).
     metadata: { category: security, surface: developer-execution }
-    # Three branches, because the destination and the write intent appear in different orders and
-    # one regex cannot express all of them. Each branch is also what keeps a READ of the same path
-    # quiet, which a single broad pattern did not.
+    # Three branches, because the destination and the write intent appear in different orders
+    # and one regex cannot express all of them. Each branch anchors the destination inside a
+    # string literal, which is what keeps a READ of the same path quiet.
     #
-    # Two defects this replaces, both measured against tests/fixtures:
-    #   False negatives. The old pattern required the sink token before the path. That is the JS
-    #   shape; Python's open() takes the path first and the mode second, so the `open` alternative
-    #   consumed straight past the filename and matched NO Python write, in any mode. pathlib was
-    #   absent, and so was CLAUDE.md, the most-loaded memory file for the agent this gate protects.
+    # Every defect below was measured against tests/fixtures, and each one has a fixture that
+    # fails without its fix:
     #
-    #   A false positive. The shell-redirect alternative was `>>?` followed by up to 60 characters
-    #   of anything, and a single `>` is the second character of a JS arrow function. So any `=>`
-    #   within 60 characters of the words MEMORY.md or CLAUDE.md was reported as a write, which
-    #   made `readFileSync("MEMORY.md")` inside a `beforeAll(() => {...})` a blocking finding.
-    #   The redirect now has to be followed by the destination, which is how a redirect is written.
+    #   Sink before path. The original single pattern required the sink token first. That is the
+    #   JS shape; Python's open() takes the path first and the mode second, so the `open`
+    #   alternative consumed past the filename and matched NO Python write, in any mode. pathlib
+    #   was absent, and so was CLAUDE.md, the most-loaded memory file for the agent this protects.
+    #
+    #   The arrow-function false positive. The redirect alternative was `>>?` plus 60 characters
+    #   of anything, and `>` is the second character of `=>`, so readFileSync("MEMORY.md") inside
+    #   a beforeAll(() => {...}) was reported as a write. A redirect now has to be followed by its
+    #   destination, which is how a redirect is written.
+    #
+    #   The string prefix. `open(` had to be followed immediately by the quote, so every Python
+    #   string prefix defeated the rule: open(r"C:\Users\alice\MEMORY.md", "a") did not
+    #   match, and neither did rf"", f"" or R"". This was never about backslashes here -- the
+    #   escaped form open("C:\\Users\\MEMORY.md", "a") already matched. NVIDIA/SkillSpector#893
+    #   shipped the same class of bug in its own analyzer (it stripped the backslashes rather than
+    #   rejecting the prefix), and its review is what prompted measuring ours.
+    #
+    #   Windows separators. `.claude/` was hardcoded to a forward slash, so
+    #   `.claude\settings.json` was uncovered on the platform where that is the normal spelling.
+    #
+    #   Near-miss filenames. The basename matched anywhere inside the literal, so memory.md.bak
+    #   and MY_AGENTS.md both blocked. A basename now has to start the literal or follow a
+    #   separator.
     pattern-either:
-      # 1. JS/TS sink names the destination. Write sinks only, so readFileSync stays quiet.
-      - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|fs\.write)[^\n]{0,60}((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)'
-      # 2. Destination first, write intent after (Python open(path, mode), pathlib). The mode has
-      #    to be a write mode, so open(path, "r") stays quiet.
-      - pattern-regex: '(?i)(open|Path)\s*\(\s*[\x22\x27][^\x22\x27\n]*((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)[^\x22\x27\n]*[\x22\x27][^\n]{0,40}([\x22\x27][aw]|\)\s*\.\s*write_(text|bytes))'
-      # 3. Shell redirect, where the destination follows the operator directly.
-      - pattern-regex: '(?i)>>?\s*[\x22\x27]?[^\x22\x27\s\n]{0,40}((MEMORY|CLAUDE|SOUL|AGENTS)\.md|\.(claude|cursor|agents)/)'
+      # 1. JS/TS sink names the destination. Write sinks only, so readFileSync stays quiet. The
+      #    backtick is included so a template literal is covered.
+      - pattern-regex: '(?i)(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|fs\.write)[^\n]{0,60}[\x22\x27\x60](?:(?:[^\x22\x27\x60\n]*[/\\])?(MEMORY|CLAUDE|SOUL|AGENTS)\.md|[^\x22\x27\x60\n]*\.(claude|cursor|agents)[/\\][^\x22\x27\x60\n]*)[\x22\x27\x60]'
+      # 2. Destination first, write intent after (Python open(path, mode), pathlib). An optional
+      #    r/rf/f/b/u prefix may precede the quote; the mode still has to be a write mode, so
+      #    open(path, "r") stays quiet.
+      - pattern-regex: '(?i)(open|Path)\s*\(\s*(?:[rRbBuUfF]{1,2})?[\x22\x27](?:(?:[^\x22\x27\n]*[/\\])?(MEMORY|CLAUDE|SOUL|AGENTS)\.md|[^\x22\x27\n]*\.(claude|cursor|agents)[/\\][^\x22\x27\n]*)[\x22\x27][^\n]{0,40}([\x22\x27][aw]|\)\s*\.\s*write_(text|bytes))'
+      # 3. Shell redirect, where the destination follows the operator directly. The basename has
+      #    to end at a token boundary, so `>> MEMORY.md.bak` stays quiet.
+      - pattern-regex: '(?i)>>?\s*[\x22\x27]?(?:[^\x22\x27\s\n]*[/\\])?(?:(MEMORY|CLAUDE|SOUL|AGENTS)\.md(?:[\x22\x27\s;)&|>]|$)|\.(claude|cursor|agents)[/\\])'
 
   - id: dev-exec-obfuscated-assembly
     languages: [generic]
