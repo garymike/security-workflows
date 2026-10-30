@@ -6,6 +6,46 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.3] - 2026-10-30
+
+### Fixed
+- **The image-pin check compared each pin against a freshly built digest, which cannot be stable,
+  so it failed on every run it ever had.** Added in #88 and red on 4 of 4 runs, including the
+  2026-10-26 scheduled rebuild, where nothing in the repo had changed and all six image jobs
+  passed.
+
+  The premise was that a rebuild with unchanged inputs produces a byte-identical digest. It does
+  not. The Dockerfiles run `apt-get update && apt-get install`, so a rebuild days apart pulls
+  different packages and publishes a different digest. The check could never stay green past the
+  next rebuild, so "pins behind" stopped carrying information, which is the cry-wolf signal this
+  repo refuses elsewhere.
+
+  It now compares something that only moves when a human changes something.
+  [`build-toolbox.yml`](.github/workflows/build-toolbox.yml) stamps every image it publishes with
+  a `git ls-files -s` fingerprint of that image's build inputs (`toolbox/base`, the image's own
+  context, and `toolbox/tools.lock`), and
+  [`scripts/check-image-pins.py`](scripts/check-image-pins.py) reads that label back off the
+  **pinned** image and compares it with the repo's current inputs. Four small registry calls per
+  image, no layer pulls.
+
+  It is also more precise. #93 changed only `toolbox/skill-audit/rules/`, which under the old
+  check turned all five pins red; under this one only `skill-audit.yml`'s pin is affected.
+
+  A pinned image carrying no stamp is reported `UNVERIFIABLE` rather than passing, so the check
+  cannot report success on absent input.
+
+### Changed
+- The pin check moved out of `build-toolbox.yml` into its own `Image pins` workflow. A red build
+  should mean the images are broken; the pins being behind is a different fact and now reads as
+  one, the same separation already used by `tool-drift.yml`. The per-image digest artifacts
+  existed only to feed the old job, and are replaced by a step-summary line naming the digest to
+  pin.
+- Corrected the reproducibility claim in both cosign sign steps. Tolerating a Rekor 409 is still
+  right, but a rebuild is byte-identical only when it is close enough to hit the buildx cache, not
+  whenever its inputs are unchanged.
+
+---
+
 ## [1.7.2] - 2026-10-30
 
 ### Fixed

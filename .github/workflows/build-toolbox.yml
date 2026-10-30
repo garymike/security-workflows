@@ -45,8 +45,16 @@ jobs:
         id: prep
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/security-toolbox-base"
+          # Fingerprint of this repo's tracked build inputs for this image, stamped onto the
+          # image below as a label so scripts/check-image-pins.py can ask a PINNED image
+          # which inputs it came from. `git ls-files -s` prints mode, blob sha and path in a
+          # stable order, so this moves only when a tracked input moves. The image digest
+          # does not have that property: the Dockerfiles apt-get install current packages, so
+          # every rebuild publishes a new digest. Keep these paths in step with PINNED there.
+          STAMP="$(git ls-files -s -- toolbox/base toolbox/tools.lock | sha256sum | cut -d" " -f1)"
           {
             echo "image=$IMAGE"
+            echo "stamp=$STAMP"
             echo "tags<<EOF"
             echo "$IMAGE:latest"
             echo "$IMAGE:sha-${GITHUB_SHA::12}"
@@ -80,6 +88,7 @@ jobs:
           context: ./toolbox/base
           push: true
           tags: ${{ steps.prep.outputs.tags }}
+          labels: io.github.garymike.toolbox.build-inputs=${{ steps.prep.outputs.stamp }}
           sbom: true
           provenance: mode=max
 
@@ -89,12 +98,17 @@ jobs:
         env:
           IMAGE: ${{ steps.prep.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        # A rebuild whose inputs did not change produces a byte-identical digest, and Rekor
-        # rejects a second equivalent entry for it with 409 createLogEntryConflict. That is not a
-        # signing failure: the entry it conflicts with IS this digest's signature, already in the
-        # log from the earlier run. #86's build went red on exactly that, because toolbox/gha was
-        # unchanged, and a red domain arm then skipped the pins job below, so a reproducible
-        # rebuild could silence the very check that watches the pins.
+        # Rekor rejects a second equivalent entry for a digest with 409 createLogEntryConflict.
+        # That is not a signing failure: the entry it conflicts with IS this digest's signature,
+        # already in the log from an earlier run, which happens when a rebuild lands on a digest
+        # that was published before. #86's build went red on exactly that.
+        #
+        # It is not the common case, and an earlier version of this comment had it backwards.
+        # These Dockerfiles apt-get install current packages, so a rebuild days apart publishes
+        # a NEW digest and cannot conflict; only a rebuild close enough to hit the buildx cache
+        # comes out identical. #88's pins job was designed on the wrong half of that and failed
+        # on every run it ever had. That check now compares build inputs instead, in
+        # scripts/check-image-pins.py.
         #
         # Matched on createLogEntryConflict specifically rather than on any non-zero exit, so a
         # real signing failure (no OIDC token, registry refusal, Fulcio down) still fails the step.
@@ -110,21 +124,24 @@ jobs:
           fi
           exit 1
 
-      # Hand the digest to the `pins` job. steps.build.outputs.digest is the authority, not the
-      # registry: a `latest` index carrying attestations reports a different digest than the image
-      # manifest, and reading it off a local pull is how two of five pins went in wrong in #82.
-      - name: Record the digest that was published
-        env:
-          DIGEST: ${{ steps.build.outputs.digest }}
-        run: |
-          mkdir -p digests
-          printf '%s %s\n' security-toolbox-base "$DIGEST" > digests/security-toolbox-base.txt
+      # steps.build.outputs.digest is the authority, not the registry: a `latest` index
+      # carrying attestations reports a different digest than the image manifest, and reading
+      # it off a local pull is how two of five pins went in wrong in #82. Printed because
+      # moving a pin is a follow-up commit, and this is the number that follow-up needs.
 
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: published-digest-security-toolbox-base
-          path: digests/
-          retention-days: 1
+      - name: Report the digest to pin
+        env:
+          IMAGE: ${{ steps.prep.outputs.image }}
+          DIGEST: ${{ steps.build.outputs.digest }}
+          STAMP: ${{ steps.prep.outputs.stamp }}
+        run: |
+          {
+            echo "### Published"
+            echo ""
+            echo "- \`${IMAGE}@${DIGEST}\`"
+            echo "- built from inputs \`${STAMP}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice::published ${IMAGE}@${DIGEST}"
 
   domain:
     name: Build, sign, push — ${{ matrix.image }}
@@ -170,8 +187,19 @@ jobs:
         id: prep
         run: |
           IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.image }}"
+          # Fingerprint of this repo's tracked build inputs for this image, stamped onto the
+          # image below as a label so scripts/check-image-pins.py can ask a PINNED image
+          # which inputs it came from. `git ls-files -s` prints mode, blob sha and path in a
+          # stable order, so this moves only when a tracked input moves. The image digest
+          # does not have that property: the Dockerfiles apt-get install current packages, so
+          # every rebuild publishes a new digest. Keep these paths in step with PINNED there.
+          # toolbox/base is an input to every domain image, because each one is built
+          # FROM the base by digest in the push step below.
+          CTX="${{ matrix.context }}"
+          STAMP="$(git ls-files -s -- toolbox/base "${CTX#./}" toolbox/tools.lock | sha256sum | cut -d" " -f1)"
           {
             echo "image=$IMAGE"
+            echo "stamp=$STAMP"
             echo "tags<<EOF"
             echo "$IMAGE:latest"
             echo "$IMAGE:sha-${GITHUB_SHA::12}"
@@ -209,6 +237,7 @@ jobs:
           build-args: |
             BASE=${{ needs.base.outputs.image }}@${{ needs.base.outputs.digest }}
           tags: ${{ steps.prep.outputs.tags }}
+          labels: io.github.garymike.toolbox.build-inputs=${{ steps.prep.outputs.stamp }}
           sbom: true
           provenance: mode=max
 
@@ -218,12 +247,17 @@ jobs:
         env:
           IMAGE: ${{ steps.prep.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
-        # A rebuild whose inputs did not change produces a byte-identical digest, and Rekor
-        # rejects a second equivalent entry for it with 409 createLogEntryConflict. That is not a
-        # signing failure: the entry it conflicts with IS this digest's signature, already in the
-        # log from the earlier run. #86's build went red on exactly that, because toolbox/gha was
-        # unchanged, and a red domain arm then skipped the pins job below, so a reproducible
-        # rebuild could silence the very check that watches the pins.
+        # Rekor rejects a second equivalent entry for a digest with 409 createLogEntryConflict.
+        # That is not a signing failure: the entry it conflicts with IS this digest's signature,
+        # already in the log from an earlier run, which happens when a rebuild lands on a digest
+        # that was published before. #86's build went red on exactly that.
+        #
+        # It is not the common case, and an earlier version of this comment had it backwards.
+        # These Dockerfiles apt-get install current packages, so a rebuild days apart publishes
+        # a NEW digest and cannot conflict; only a rebuild close enough to hit the buildx cache
+        # comes out identical. #88's pins job was designed on the wrong half of that and failed
+        # on every run it ever had. That check now compares build inputs instead, in
+        # scripts/check-image-pins.py.
         #
         # Matched on createLogEntryConflict specifically rather than on any non-zero exit, so a
         # real signing failure (no OIDC token, registry refusal, Fulcio down) still fails the step.
@@ -239,124 +273,16 @@ jobs:
           fi
           exit 1
 
-      - name: Record the digest that was published
+      - name: Report the digest to pin
         env:
-          IMAGE_NAME: ${{ matrix.image }}
+          IMAGE: ${{ steps.prep.outputs.image }}
           DIGEST: ${{ steps.build.outputs.digest }}
+          STAMP: ${{ steps.prep.outputs.stamp }}
         run: |
-          mkdir -p digests
-          printf '%s %s\n' "$IMAGE_NAME" "$DIGEST" > "digests/${IMAGE_NAME}.txt"
-
-      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: published-digest-${{ matrix.image }}
-          path: digests/
-          retention-days: 1
-
-  pins:
-    name: Reusable-workflow image pins match what was published
-    needs: [base, domain]
-    # Runs even when an arm of the build failed. Without this, one red domain arm skips the check
-    # entirely, which is how #86 published five images with nobody comparing the pins. An image
-    # that did not publish is reported as not checked rather than counted as current.
-    if: ${{ !cancelled() }}
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      contents: read
-
-    # The five reusable workflows pin their toolbox image by digest, and #73 made that pin
-    # deliberate on purpose: a rebuild must not silently change what every caller scans with, after
-    # betterleaks 1.6.1 -> 1.8.1 in #64 turned green repos red overnight. The cost of "deliberate"
-    # is that nothing moves it for you, and nothing reminded anyone either. #80 bumped eight tools
-    # and #81 bumped SkillSpector, both published, and neither moved the pins, so callers kept
-    # getting the previous toolchain while tools.lock claimed otherwise. #82 was the cleanup, and
-    # the pins have gone stale again on every toolbox/** change since.
-    #
-    # So this compares each pin against the digest this run actually published. It is a SEPARATE
-    # job, after base and domain, on purpose: publishing must never be blocked by a stale pin,
-    # because the digest to pin does not exist until the publish has happened. The images ship and
-    # the run still goes red, so the follow-up is not optional. Red here means the pins are behind,
-    # not that anything is broken, which is the same contract as tool-drift.yml.
-    #
-    # Deliberately not a registry lookup. Comparing against the `latest` index digest false-reds on
-    # images whose index carries attestations, which is why the equivalent check was pulled back out
-    # of check-tool-updates.sh in #82. The build already holds both halves.
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: published-digest-*
-          merge-multiple: true
-          path: digests
-
-      - name: Compare each pin with the digest published in this run
-        run: |
-          set -uo pipefail
-          # mcp-review-toolbox is built here but no reusable workflow pins it, so it is reported as
-          # unpinned rather than counted as a mismatch.
-          wf_for() {
-            case "$1" in
-              security-toolbox-base) echo security-scan ;;
-              gha-toolbox)           echo gha-security ;;
-              sast-toolbox)          echo sast ;;
-              iac-toolbox)           echo iac-security ;;
-              skill-audit-toolbox)   echo skill-audit ;;
-              *)                     echo "" ;;
-            esac
-          }
-
-          ls digests/*.txt >/dev/null 2>&1 || { echo "::error::no digest files were produced, so the pins were NOT verified"; exit 1; }
-
-          # Every image this workflow publishes. A missing digest file means that arm did not get
-          # as far as publishing, so there is nothing to compare: say so loudly instead of letting
-          # a short list read as a clean sweep.
-          for expected in security-toolbox-base gha-toolbox sast-toolbox iac-toolbox skill-audit-toolbox mcp-review-toolbox; do
-            [ -f "digests/${expected}.txt" ] || echo "::warning::${expected} published no digest in this run, so its pin was NOT checked."
-          done
-
-          stale=0
           {
-            echo "| image | workflow | pinned | published | |"
-            echo "|---|---|---|---|---|"
+            echo "### Published"
+            echo ""
+            echo "- \`${IMAGE}@${DIGEST}\`"
+            echo "- built from inputs \`${STAMP}\`"
           } >> "$GITHUB_STEP_SUMMARY"
-
-          for file in digests/*.txt; do
-            read -r image published < "$file"
-            wf="$(wf_for "$image")"
-            if [ -z "$wf" ]; then
-              echo "  ${image}: built here, not pinned by a reusable workflow (skipped)"
-              echo "| ${image} | none | - | $(printf %.12s "${published#sha256:}") | not pinned |" >> "$GITHUB_STEP_SUMMARY"
-              continue
-            fi
-            path=".github/workflows/${wf}.yml"
-            pinned="$(sed -n "s|.*${image}@\(sha256:[0-9a-f]\{64\}\).*|\1|p" "$path" | head -1)"
-            if [ -z "$pinned" ]; then
-              echo "::error::${wf}.yml has no ${image} digest pin to compare against"
-              stale=1
-            elif [ "$pinned" != "$published" ]; then
-              echo "::error::${wf}.yml pins ${image}@${pinned#sha256:} but this run published ${published#sha256:}. Move the pin alongside toolbox/tools.lock, per the comment in that workflow."
-              echo "| ${image} | ${wf}.yml | $(printf %.12s "${pinned#sha256:}") | $(printf %.12s "${published#sha256:}") | **behind** |" >> "$GITHUB_STEP_SUMMARY"
-              stale=1
-            else
-              echo "  ${wf}.yml: ${image} pin is current"
-              echo "| ${image} | ${wf}.yml | $(printf %.12s "${pinned#sha256:}") | $(printf %.12s "${published#sha256:}") | current |" >> "$GITHUB_STEP_SUMMARY"
-            fi
-          done
-
-          if [ "$stale" -ne 0 ]; then
-            {
-              echo ""
-              echo "### Pins are behind"
-              echo ""
-              echo "The images above published fine. What is missing is the second half of the change:"
-              echo "move the digest pins in the reusable workflows to what this run built, in their own"
-              echo "commit. The digest does not exist until the publish has happened, which is why this"
-              echo "is always a follow-up rather than part of the bump."
-            } >> "$GITHUB_STEP_SUMMARY"
-            exit 1
-          fi
-          echo "All reusable-workflow image pins match what this run published."
+          echo "::notice::published ${IMAGE}@${DIGEST}"
