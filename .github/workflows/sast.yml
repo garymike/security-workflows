@@ -56,7 +56,7 @@ jobs:
           # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
           # rebuild otherwise changes what every caller scans with, without any
           # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
-          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox@sha256:bf29784b21213b59831b3f9dc39bb2101ef021323e17684d87f731dc72a92bc0
+          IMAGE: ghcr.io/garymike/security-workflows/sast-toolbox@sha256:781385e0f1c280c5e2ff4d7269ce746b9e8808d27c2c4661d0cda05e0af3b9d6
           SCAN_PATH: ${{ inputs.path }}
           CONFIG: ${{ inputs.config }}
         run: |
