@@ -42,7 +42,7 @@ jobs:
           # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
           # rebuild otherwise changes what every caller scans with, without any
           # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
-          IMAGE: ghcr.io/garymike/security-workflows/gha-toolbox@sha256:4cef3443acbdb92fd0f45c5d27ed2dc38021319c6ba06fcdfc62b52633937bc6
+          IMAGE: ghcr.io/garymike/security-workflows/gha-toolbox@sha256:9df49b1d2c2b9c0e6842c1b9de9edf85b6668d8054a5b0d33e20772c694faf37
           FAIL: ${{ inputs.fail-on-findings }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
