@@ -6,6 +6,37 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.7] - 2026-10-30
+
+### Removed
+- **The PyJWT override.** It existed because semgrep pinned `pyjwt[crypto]~=2.13.0`, which held
+  PyJWT at 2.13.0 and therefore at CVE-2026-102268 (CRITICAL, fixed in 2.14.0), so
+  `sast-toolbox` and `skill-audit-toolbox` each installed 2.15.1 with `--no-deps` to defeat that
+  constraint. As of semgrep 1.183.0 the constraint is `pyjwt[crypto]<3,>=2.15.0`, so the
+  resolver cannot reach a vulnerable version and an explicit pin would only drift out of step
+  with semgrep's own floor.
+
+  Measured rather than reasoned, because semgrep *declaring* a floor is not the same as the
+  resolver *landing* above it, and the override existed for a CRITICAL. Built both images
+  without it:
+
+  | image | resolved PyJWT | semgrep |
+  |---|---|---|
+  | `sast-toolbox` | 2.15.1 | 1.183.0 |
+  | `skill-audit-toolbox` | 2.15.1 | 1.183.0 |
+
+  2.15.1 is exactly what the override was forcing, so removing it changes nothing about what
+  ships. `gate-proof.sh` passes 16 of 16 against the image built without it.
+
+  A comment is left in both Dockerfiles rather than deleting the history outright. Without it,
+  the next person reading CVE-2026-102268 against these images cannot tell whether the override
+  was dropped deliberately or never existed, and it names the condition for re-adding one:
+  semgrep's lower bound dropping below 2.14.0 again.
+
+  `toolbox/tools.lock` loses its two `pyjwt` entries, one per image that carried the override.
+
+---
+
 ## [1.7.6] - 2026-10-30
 
 ### Added
