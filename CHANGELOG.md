@@ -6,6 +6,46 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.4] - 2026-10-30
+
+### Changed
+- Pinned tools moved to clear the weekly drift gate, which had gone red again four days after
+  1.7.2 cleared it. Four releases landed upstream in that window.
+
+  | Tool | From | To |
+  |---|---|---|
+  | snyk-agent-scan | `0.6.9` | `0.6.10` |
+  | semgrep | `1.182.1` | `1.183.0` |
+  | checkov | `3.3.30` | `3.4.0` |
+  | skillspector | `2.13.0` | `2.13.2` |
+
+  The first three went through `scripts/apply-tool-bumps.py`, so `toolbox/tools.lock` and the
+  matching Dockerfile ARGs moved together. skillspector is a hand bump by design: its ARG is
+  `SKILLSPECTOR_REF`, a commit SHA rather than a version, and that script deliberately refuses
+  it because `patch_lock` would rewrite the lock while `patch_dockerfiles` matched nothing and
+  the half-bump would report as applied. `v2.13.2` resolves to `abd82935b67f`.
+- Re-measured every fixture at skillspector 2.13.2, which is what the drift warning for that
+  pin asks for. Nothing moved: `gecko-demo` 64/100, `gecko-hook-demo` 76/100,
+  `config-injection-demo` 100/100, `sibling-config-demo` 51/100, and the persistent-memory
+  write still cleared at 0/100. [`gate-proof.sh`](tests/gate-proof.sh) passes 16 of 16 against
+  the freshly built image.
+
+  v2.13.2 predates [NVIDIA/SkillSpector#893](https://github.com/NVIDIA/SkillSpector/pull/893),
+  checked against the commit graph rather than inferred from release dates: the merge commit is
+  1196 commits ahead of that tag. So the agent-memory write is still the one carrier this gate
+  uniquely covers, and the `0/100` figure in `README.md`, `docs/` and the Dockerfiles remains
+  accurate. The release that first carries #893 is the one that moves that fixture to 27/100 and
+  makes those references stale.
+
+### Fixed
+- The PyJWT override's comment claimed semgrep pins `pyjwt[crypto]~=2.13.0`. As of semgrep
+  1.183.0 it requires `<3,>=2.15.0`, so this very bump made that comment false. Corrected in
+  both Dockerfiles that carry it. The override itself is left in place deliberately: removing it
+  un-pins pyjwt in a repo that pins everything on purpose, and that trade deserves its own
+  change rather than riding along with a version bump.
+
+---
+
 ## [1.7.3] - 2026-10-30
 
 ### Fixed

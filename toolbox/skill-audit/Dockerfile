@@ -18,12 +18,18 @@ ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
 # NVIDIA/SkillSpector. No PyPI package, so it is installed from git; pinned to the
-# commit a RELEASE TAG points at, not to a moving HEAD. v2.13.0 = 091a509b3d6b.
-ARG SKILLSPECTOR_REF=091a509b3d6ba8ff5be528966e1f43c2e68cf214
+# commit a RELEASE TAG points at, not to a moving HEAD. v2.13.2 = abd82935b67f.
+ARG SKILLSPECTOR_REF=abd82935b67f765a9541013c0866c6349251dcdf
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
-ARG SEMGREP_VERSION=1.182.1
-# semgrep pins pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
+ARG SEMGREP_VERSION=1.183.0
+# NOTE: as of semgrep 1.183.0 this override is redundant. semgrep now requires
+# pyjwt[crypto]<3,>=2.15.0, so pip resolves a fixed version on its own and the condition this
+# comment used to name ("once semgrep relaxes the pin") is met. Left in place deliberately:
+# removing it un-pins pyjwt, and whether to drop it or keep it as an explicit floor is its own
+# decision rather than part of a version bump.
+#
+# semgrep USED TO pin pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
 # CRITICAL, fixed in 2.14.0. semgrep touches PyJWT only to authenticate to Semgrep
 # AppSec Platform, which these workflows never do (no SEMGREP_APP_TOKEN is ever
 # supplied), so the flaw is not reachable here -- but a fixable finding is fixed,

@@ -12,8 +12,14 @@
 ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
-ARG SEMGREP_VERSION=1.182.1
-# semgrep pins pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
+ARG SEMGREP_VERSION=1.183.0
+# NOTE: as of semgrep 1.183.0 this override is redundant. semgrep now requires
+# pyjwt[crypto]<3,>=2.15.0, so pip resolves a fixed version on its own and the condition this
+# comment used to name ("once semgrep relaxes the pin") is met. Left in place deliberately:
+# removing it un-pins pyjwt, and whether to drop it or keep it as an explicit floor is its own
+# decision rather than part of a version bump.
+#
+# semgrep USED TO pin pyjwt[crypto]~=2.13.0, holding PyJWT at 2.13.0 -- CVE-2026-102268,
 # CRITICAL, fixed in 2.14.0. semgrep touches PyJWT only to authenticate to Semgrep
 # AppSec Platform, which these workflows never do (no SEMGREP_APP_TOKEN is ever
 # supplied), so the flaw is not reachable here -- but a fixable finding is fixed,
