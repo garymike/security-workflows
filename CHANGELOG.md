@@ -6,6 +6,43 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.6] - 2026-10-30
+
+### Added
+- [`scripts/move-image-pins.py`](scripts/move-image-pins.py), which does the follow-up half of
+  any toolbox change: move the five reusable-workflow digest pins to what a given commit's build
+  published. It had been a throwaway script living outside the repo, which meant the one rule
+  that keeps it safe to use lived only in whoever's head last ran it.
+
+  It **refuses to run while `check-image-pins.py` is green**, because the two answer different
+  questions and routinely disagree:
+
+  | script | question | after an unchanged rebuild |
+  |---|---|---|
+  | `check-image-pins.py` | was the pinned image built from the current inputs? | current |
+  | `move-image-pins.py` | does the pin name one specific build? | would move |
+
+  Every rebuild publishes a new digest, since the Dockerfiles `apt-get install` current
+  packages, so "the pin names the newest build" goes false within a week of every pin move while
+  "built from current inputs" stays true. Running the mover routinely would churn all five pins
+  to a functionally identical build, in files whose whole point is that they change only
+  deliberately.
+
+  `--force` covers the one case the check is blind to on purpose. The weekly rebuild exists to
+  pick up **base-image patches**, which change what callers run without changing any input this
+  repo tracks, so the check stays green while the pinned image ages. Pulling those through to
+  callers is a real reason to move a pin, and it now has to be stated rather than inferred.
+
+  It resolves the per-commit `sha-<commit12>` tag rather than `latest`, and verifies every
+  digest's build-inputs label against the repo's own fingerprint before writing anything, so a
+  wrong digest cannot land even under `--force`.
+
+### Changed
+- `check-image-pins.py`'s failure messages now name the script that fixes them, so a red run
+  says what to do rather than only what is wrong.
+
+---
+
 ## [1.7.5] - 2026-10-30
 
 ### Fixed
