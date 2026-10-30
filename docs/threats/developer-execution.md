@@ -44,6 +44,11 @@ literal. Two shapes measured as still passing, both one line to write:
 - a destination assembled rather than written out, `open("MEM" + "ORY" + ".md", "a")`
 - `open` reached through an indirection, so the call site has no filename in it
 
+The line is the **basename**, not the path. A computed directory with a literal basename is
+covered, including `open(f"{base}/MEMORY.md", "a")` and a raw Windows path, which are asserted as
+checks 14 and 13. What still passes is an assembled or indirect basename, where no literal
+filename appears at the call site at all.
+
 Fixing those needs the path resolved rather than matched, which is a different kind of analysis
 than this rule pack does. They are not asserted in [`gate-proof.sh`](../../tests/gate-proof.sh) on
 purpose: an assertion that the gate does **not** catch something turns a weakness into expected

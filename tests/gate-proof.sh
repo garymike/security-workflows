@@ -41,6 +41,21 @@
 #               function. The rule's redirect alternative used to match the `>` in `=>`, making a
 #               read-only file a blocking write finding.
 #
+#  13 (BLOCK)   gate MUST block memory-poisoning-raw-path-demo: open(r"C:\Users\alice\MEMORY.md",
+#               "a"). The rule required the quote to follow `open(` immediately, so every Python
+#               string prefix walked through. NVIDIA/SkillSpector#893 was sent back in review for
+#               the same class of bug in its own analyzer, which is what prompted measuring ours.
+#  14 (BLOCK)   gate MUST block memory-poisoning-fstring-demo: open(f"{base}/MEMORY.md", "a"). Same
+#               prefix gap as #13, and the shape a carrier uses when the directory is computed at
+#               runtime while the basename stays literal.
+#  15 (BLOCK)   gate MUST block memory-poisoning-win-config-demo: open(r".claude\settings.json",
+#               "w"). The agent config directories were spelled with a hardcoded forward slash, so
+#               they were uncovered on the one platform where a backslash is the normal spelling.
+#  16 (CLEAR)   gate MUST NOT block memory-near-miss-benign: memory.md.bak and MY_AGENTS.md. The
+#               basename was matched anywhere inside the literal, so a filename that merely
+#               CONTAINS an agent-memory name blocked. A basename now has to start the literal or
+#               follow a separator.
+#
 # Usage: bash tests/gate-proof.sh [IMAGE]     (default: skill-audit-toolbox:ci)
 set -uo pipefail
 IMAGE="${1:-${GATE_IMAGE:-skill-audit-toolbox:ci}}"
@@ -157,6 +172,35 @@ echo "== 12. gate MUST NOT block a READ of agent memory (memory-read-benign) =="
 # shipped: the rule's shell-redirect alternative matched the `>` in a JS arrow function, so an
 # `=>` within 60 characters of "MEMORY.md" reported a write on a read-only file.
 if gate memory-read-benign; then echo "  PASS: not blocked (a read of MEMORY.md beside an arrow function is not a write)"; else echo "  FAIL: false positive on a read-only access to agent memory"; fail=1; fi
+
+echo ""
+echo "== 13. gate MUST block a RAW-STRING destination (memory-poisoning-raw-path-demo) =="
+# The rule required `open(` to be followed immediately by the quote, so r"", rf"", f"" and R"" all
+# walked through. A raw string is the natural spelling for a Windows path, so this was the likely
+# spelling in a real carrier rather than an exotic one. Not a backslash problem on our side: the
+# escaped form open("C:\\Users\\MEMORY.md", "a") already matched.
+if gate memory-poisoning-raw-path-demo; then echo "  FAIL: not blocked (a Python string prefix defeats the destination match again)"; fail=1; else echo "  PASS: blocked (conftest.py appends to a raw-string MEMORY.md path)"; fi
+
+echo ""
+echo "== 14. gate MUST block an F-STRING destination (memory-poisoning-fstring-demo) =="
+# Same prefix gap as #13. An f-string is how a carrier reaches a memory file whose directory is
+# computed at runtime while the BASENAME stays literal, and the basename is what the rule matches.
+# A fully computed destination is still a documented residual, not this.
+if gate memory-poisoning-fstring-demo; then echo "  FAIL: not blocked (the f prefix defeats the destination match again)"; fail=1; else echo "  PASS: blocked (conftest.py appends to an f-string MEMORY.md path)"; fi
+
+echo ""
+echo "== 15. gate MUST block a WINDOWS-SEPARATOR agent config write (memory-poisoning-win-config-demo) =="
+# The destination list spelled the agent directories as `.claude/` with a hardcoded forward slash,
+# so `.claude\settings.json` was uncovered on the platform where that is the normal spelling.
+# Same rule covers the memory files and the config directories, so the gap applied to both.
+if gate memory-poisoning-win-config-demo; then echo "  FAIL: not blocked (a backslash separator defeats the agent-config destinations again)"; fail=1; else echo "  PASS: blocked (conftest.py writes .claude with a backslash separator)"; fi
+
+echo ""
+echo "== 16. gate MUST NOT block NEAR-MISS filenames (memory-near-miss-benign) =="
+# Guards a false positive the rule shipped with: the basename matched anywhere inside the string
+# literal, so memory.md.bak (a backup, which nothing loads into a session) and MY_AGENTS.md (a
+# team roster) both blocked. Upstream lists memory.md.bak as a quiet case for the same reason.
+if gate memory-near-miss-benign; then echo "  PASS: not blocked (memory.md.bak and MY_AGENTS.md are different files)"; else echo "  FAIL: false positive on a filename that merely contains an agent-memory name"; fail=1; fi
 
 echo ""
 if [ "$fail" -eq 0 ]; then echo "PROOF-FIXTURE PASSED: the gate covers the developer-execution surface (test-file, git-hook, config-injection, memory-poisoning, and sibling-ecosystem vectors)."; else echo "PROOF-FIXTURE FAILED"; fi
