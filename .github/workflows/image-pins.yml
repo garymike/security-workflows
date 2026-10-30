@@ -1,0 +1,55 @@
+# Are the five reusable workflows pinning images built from the current repo inputs?
+#
+# Its own workflow rather than a job inside build-toolbox.yml, because it answers a different
+# question. The build going green means the images are fine; this going red means the PINS are
+# behind, which is not a broken build and should not read as one. Same contract, and the same
+# separation, as tool-drift.yml.
+#
+# Deliberately not run on pull_request. The digest to pin does not exist until the publish has
+# happened, so a PR that bumps a tool could never be green here, and a check that cannot pass on
+# the PR that causes it is a check people learn to ignore. It runs after the merge, where moving
+# the pin is the follow-up commit it is asking for.
+name: Image pins
+
+on:
+  push:
+    branches: [main]
+    paths:
+      # Anything that changes what a published image contains.
+      - 'toolbox/**'
+      # Moving a pin should re-verify it.
+      - '.github/workflows/security-scan.yml'
+      - '.github/workflows/gha-security.yml'
+      - '.github/workflows/sast.yml'
+      - '.github/workflows/iac-security.yml'
+      - '.github/workflows/skill-audit.yml'
+      - '.github/workflows/image-pins.yml'
+      - 'scripts/check-image-pins.py'
+  schedule:
+    # Monday 07:00 UTC, an hour after the toolbox rebuild, so a week of drift cannot sit unseen
+    # even if nobody touches the repo.
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  pins:
+    name: Reusable-workflow image pins are built from the current inputs
+    runs-on: ubuntu-latest
+    # Four small registry calls per image, five images, no layer pulls.
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      packages: read   # read the pinned images' config blobs from GHCR
+
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Red here means the pins are behind, not that anything is broken. The script says which
+      # pin, what it was built from, and what the repo holds now.
+      - name: Compare each pin against the current build inputs
+        run: python3 scripts/check-image-pins.py
