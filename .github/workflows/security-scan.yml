@@ -71,7 +71,7 @@ jobs:
           # betterleaks 1.6.1 -> 1.8.1 (#64) added the generic-password and
           # generic-credential-uri rules and turned green repos red overnight.
           # Bump this deliberately, alongside toolbox/tools.lock.
-          IMAGE: ghcr.io/garymike/security-workflows/security-toolbox-base@sha256:9be060794ecb0370a97b5a47a7c8333414f708f40618b273a37c86945163870d
+          IMAGE: ghcr.io/garymike/security-workflows/security-toolbox-base@sha256:4d1337450ff0169ec30f1ca579ff0c7306d4eb5a9ad2b083d1c50b1e2610f04b
           FAIL: ${{ inputs.fail-on-findings }}
         run: |
           set -uo pipefail
