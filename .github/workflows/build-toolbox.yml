@@ -10,6 +10,23 @@ on:
     - cron: '0 6 * * 1'   # weekly Monday 06:00 UTC — rebuild to pick up base-image patches
   workflow_dispatch:
 
+# One publish at a time: these jobs push and sign six images to shared registry tags, so two
+# runs at once race each other on `latest`. Measured, not hypothetical -- the #91 and #93 builds
+# started 25 seconds apart, and for iac-toolbox the EARLIER run's push landed last, so `latest`
+# named the older build while the newer digest existed only under its `sha-` tag.
+#
+# The group deliberately omits github.ref. The tags are global, so a workflow_dispatch from
+# another branch has to serialize with main's runs too, not get its own lane.
+#
+# cancel-in-progress is false, as in tool-bump.yml and for the same reason: killing a run
+# mid-flight can leave the base published and the five domain images not, which is a worse state
+# than a slower queue. Nothing in flight is interrupted, runs serialize, and the newest commit's
+# run finishes last so it wins `latest`. GitHub keeps only one pending run per group, so a burst
+# of pushes collapses to the one running plus the newest, which is the right pair to keep.
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
 permissions:
   contents: read
 

@@ -6,6 +6,27 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.5] - 2026-10-30
+
+### Fixed
+- **Two toolbox builds could publish at once, and did.** `build-toolbox.yml` had no
+  `concurrency:` guard, so the #91 and #93 builds ran 25 seconds apart and both pushed `latest`.
+  For `iac-toolbox` the earlier run's push landed last, leaving `latest` on the older build while
+  the newer digest existed only under its `sha-` tag.
+
+  Publishing is now serialized on a group that deliberately omits `github.ref`, because the
+  registry tags are global and a `workflow_dispatch` from another branch must queue behind main
+  rather than get its own lane. `cancel-in-progress` is `false`, matching `tool-bump.yml`:
+  killing a run mid-flight can leave the base published and the five domain images not, which is
+  worse than a slower queue. The newest commit's run finishes last, so it wins `latest`.
+
+  Found while moving the image pins, by cross-checking what the registry served against what the
+  build log said it published. Nothing broke because of it: the pin mover resolves the per-commit
+  `sha-` tag precisely so a raced `latest` cannot be pinned. `latest` is still what a human
+  reaching for the image by tag gets, which is why it is worth fixing rather than routing around.
+
+---
+
 ## [1.7.4] - 2026-10-30
 
 ### Changed
