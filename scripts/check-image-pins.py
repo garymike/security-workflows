@@ -134,7 +134,8 @@ def main():
         if got is None:
             print("::error::{} pins {}@{}, which carries no {} label. It was built before this "
                   "check existed, so what it holds cannot be verified from the registry. Move the "
-                  "pin to a digest published by a build that stamps it.".format(
+                  "pin to a digest published by a build that stamps it: "
+                  "scripts/move-image-pins.py <commit> --apply".format(
                       workflow, image, digest[7:19], LABEL))
             rows.append((image, workflow, want[:12], "none", "UNVERIFIABLE"))
             bad += 1
@@ -142,7 +143,8 @@ def main():
             print("::error::{} pins {}@{}, built from inputs {}, but this repo's inputs for it are "
                   "now {}. A tracked file under {}, toolbox/base or toolbox/tools.lock has changed "
                   "since that image was built, so callers are scanning with the previous build. "
-                  "Move the pin to the digest the latest build published.".format(
+                  "Fix with: scripts/move-image-pins.py <the commit whose build published> "
+                  "--apply".format(
                       workflow, image, digest[7:19], got[:12], want[:12], context))
             rows.append((image, workflow, want[:12], got[:12], "BEHIND"))
             bad += 1
