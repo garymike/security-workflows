@@ -77,11 +77,14 @@ Cite entries by their tag (e.g. **[SkillCloak]**) in prose; link back here for t
 ## Tools & standards
 
 - **[SkillSpector]** NVIDIA, the skill scanner this project pairs the gate with. It scans the bundled
-  surface and gates on exit code (exit 1 above `risk_score` 50). As of v2.13.0 it blocks four of our five
+  surface and gates on exit code (exit 1 above `risk_score` 50). As of v2.13.4 it blocks four of our five
   malicious fixtures (test-file 64/100, git-hook 76/100, Claude config-injection 100/100, Cursor/VS Code
-  51/100) and clears the fifth, a write to persistent agent memory, at 0/100 `SAFE`. The `.husky/` carrier
-  used to score 28/100 and pass; v2.11 added a shebang/mode fallback to its executable classification and
-  closed that. The gate blocks all five. Live numbers: [`tests/gate-proof.sh`](../tests/gate-proof.sh). <https://github.com/NVIDIA/SkillSpector>
+  51/100) and clears the fifth, a write to persistent agent memory, at 27/100 `CAUTION`. Two of those
+  numbers moved because upstream closed a gap. The `.husky/` carrier used to score 28/100 and pass; v2.11
+  added a shebang/mode fallback to its executable classification and closed that. The memory write used to
+  score 0/100 with no finding at all; v2.13.4 scores it as `MP3 - Memory Manipulation`, HIGH, 85%
+  confidence, with `destination=MEMORY.md` in the evidence, and still exits 0 because 27 is under the
+  threshold. The gate blocks all five. Live numbers: [`tests/gate-proof.sh`](../tests/gate-proof.sh). <https://github.com/NVIDIA/SkillSpector>
 - **[ClaudeReview]** Anthropic, *claude-code-security-review*: official AI-powered PR security review (Claude reads
   the diff for injection/authz/crypto/RCE/business-logic flaws; a second LLM pass filters false positives).
   <https://github.com/anthropics/claude-code-security-review> ·

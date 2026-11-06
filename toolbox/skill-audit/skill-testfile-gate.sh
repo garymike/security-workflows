@@ -5,9 +5,10 @@
 # the DEVELOPER's toolchain, the test runner (Jest/Vitest/Mocha/pytest), the package manager
 # (npm lifecycle scripts), git (hooks), or the interpreter (.pth/sitecustomize), with full local
 # permissions, entirely outside the agent (Gecko Security, 2026; see docs/threat-model.md). The
-# "covered surface" (SKILL.md, agent-invoked scripts) is SkillSpector's job, and as of v2.13.0 it blocks
-# most of this one as well. The carrier it still clears is a write to persistent agent memory (0/100
-# SAFE), and its verdict rides on a risk_score crossing 50 rather than on a pattern in a named file.
+# "covered surface" (SKILL.md, agent-invoked scripts) is SkillSpector's job, and as of v2.13.4 it blocks
+# most of this one as well. The carrier it still clears is a write to persistent agent memory: it reports
+# that write as HIGH (MP3, destination named) and exits 0 at 27/100, because its verdict rides on a
+# risk_score crossing 50 rather than on a pattern in a named file.
 # This gate fires per finding, emits SARIF, and covers every carrier in the list above.
 #
 # Two layers, tiered by severity (docs/adr/0012):
