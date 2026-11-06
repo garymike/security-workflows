@@ -14,10 +14,10 @@
 
 FROM python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83 AS downloader
 
-ARG BETTERLEAKS_VERSION=1.9.0
-ARG TRUFFLEHOG_VERSION=3.99.7
+ARG BETTERLEAKS_VERSION=1.10.0
+ARG TRUFFLEHOG_VERSION=3.99.8
 ARG OSV_SCANNER_VERSION=2.7.0
-ARG SYFT_VERSION=1.55.0
+ARG SYFT_VERSION=1.57.0
 
 RUN set -eux; \
     apt-get update; \
@@ -74,7 +74,7 @@ RUN set -eux; \
 # --------------------------------------------------------------------------- #
 FROM python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
 
-ARG PIP_VERSION=26.2.2
+ARG PIP_VERSION=26.3
 
 LABEL org.opencontainers.image.title="security-toolbox-base" \
       org.opencontainers.image.description="Generic pinned static security scanners (betterleaks, trufflehog, osv-scanner, syft) — the shared base layer for the domain toolbox images." \

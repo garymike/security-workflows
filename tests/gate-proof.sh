@@ -5,24 +5,30 @@
 #   1 (BLOCK)   gate MUST block gecko-demo, the test-file vector (malice in a *.test.ts).
 #   2 (BLOCK)   gate MUST block gecko-hook-demo, the git-hook vector (malice in .husky/pre-commit).
 #   3 (CLEAR)   gate MUST NOT block benign-skill (presence != malice, a legit bundled test is not a finding).
-#   4 (COVERAGE) HARD on the one carrier upstream still misses, OBSERVED on the rest.
+#   4 (COVERAGE) HARD on the one carrier upstream still installs, OBSERVED on the rest.
 #               As of SkillSpector v2.13.0 the original differentiator is mostly gone, and that is
 #               recorded here rather than worked around. It blocks gecko-demo (64/100), gecko-hook-demo
 #               (76/100), config-injection-demo (100/100) and sibling-config-demo (51/100). Those four
 #               are PRINTED, not asserted: sibling-config-demo clears the risk_score-50 threshold by a
 #               single point, so hard-asserting it would turn this gate red on any minor upstream
 #               rescoring, which is the cry-wolf signal we avoid elsewhere.
-#               What IS hard-asserted: SkillSpector must NOT block memory-poisoning-demo. It scores it
-#               0/100 SAFE, "no security issues detected", at Coverage 100.0% with the test file typed
-#               Executable=Yes — so it read the file, analysed it, and cleared it. Measured mechanism vs
-#               content: the identical appendFileSync to MEMORY.md scores 0/100 with an inert payload and
-#               35/100 with a literal injection string, against 27/100 for that same string sitting in
-#               SKILL.md prose with no write at all. The write to persistent agent memory is worth ~8
-#               points of prose matching and is not modelled; neither variant blocks. That is the last
-#               carrier the gate uniquely covers, so if this assertion ever flips, the gate's remaining
-#               justification is gone and docs/ must say so. (The research SOTA excludes the surface
-#               entirely by scope: arXiv 2601.10338 scans SKILL.md + invoked scripts; 2607.02357
-#               detonates the agent path, not `npm test`.)
+#               What IS hard-asserted: SkillSpector must NOT block memory-poisoning-demo. As of
+#               v2.13.4 it scores that fixture 27/100 CAUTION and exits 0, on a report whose ONLY
+#               finding is the write itself: "HIGH: MP3 - Memory Manipulation", 85% confidence,
+#               evidence carrier_kind=auto_run destination=MEMORY.md. So this is not a blind spot
+#               any more, it is a threshold: the scanner names the write, rates it HIGH, and exits
+#               0 because 27 < 50. Measured mechanism vs content at v2.13.4 - the identical
+#               appendFileSync to MEMORY.md scores 27/100 (MP3 alone) with an inert canary, and
+#               63/100 with a literal injection string, which adds P1 + EA2 and blocks; that same
+#               string as inert SKILL.md prose with no write at all scores 27/100 (P1 + EA2). Each
+#               half is worth 27 and only the sum crosses 50, so the installable variant is the one
+#               whose payload does not read like an injection. Up to v2.13.2 the write scored 0/100
+#               with no finding at all; the three-tag comparison is in CHANGELOG 1.7.8.
+#               MARGIN: this assertion now sits 23 points from flipping, not 50. If it flips, the
+#               gate's remaining justification has changed and docs/ must say so rather than find a
+#               new way to word the claim. (The research SOTA excludes the surface entirely by
+#               scope: arXiv 2601.10338 scans SKILL.md + invoked scripts; 2607.02357 detonates the
+#               agent path, not `npm test`.)
 #   5 (BLOCK)   gate MUST block config-injection-demo, the agent's own auto-run config (CVE-2025-59536).
 #   6 (CLEAR)   gate MUST NOT block config-injection-benign (npx MCP + an innocuous hook warn, do not fail).
 #   7 (BLOCK)   gate MUST block memory-poisoning-demo, a write to persistent agent memory (Snyk ToxicSkills).
@@ -99,14 +105,16 @@ for fx in gecko-demo gecko-hook-demo config-injection-demo sibling-config-demo m
 done
 
 # The single hard assertion: memory-poisoning-demo is the last carrier the gate uniquely
-# covers. SkillSpector reads the file, types it executable, reports 100% coverage, and
-# clears it at 0/100 SAFE. The gate blocks it. If EITHER half flips, the gate's remaining
-# justification has changed and docs/ must be re-measured before they are trusted.
+# covers. SkillSpector reads the file, types it executable, reports 100% coverage, emits a
+# HIGH MP3 finding naming the write, and still clears it on score (27/100, exit 0). The gate
+# blocks it. If EITHER half flips, the gate's remaining justification has changed and docs/
+# must be re-measured before they are trusted.
 if gate memory-poisoning-demo >/dev/null 2>&1; then gate_enforces=0; else gate_enforces=1; fi
 if ss memory-poisoning-demo; then ss_blocks_mem=0; else ss_blocks_mem=1; fi
 if [ "$gate_enforces" -eq 1 ] && [ "$ss_blocks_mem" -eq 0 ]; then
-  echo "  PASS: SkillSpector clears the persistent-memory-write carrier; the gate blocks it."
-  echo "        An exit-code CI gate would install that skill with SkillSpector alone."
+  echo "  PASS: SkillSpector clears the persistent-memory-write carrier on score; the gate blocks it."
+  echo "        It reports that write as HIGH and exits 0 anyway, so an exit-code CI gate"
+  echo "        would install that skill with SkillSpector alone."
 else
   echo "  FAIL: expected gate=1 ss_mem=0; got gate=$gate_enforces ss_mem=$ss_blocks_mem."
   if [ "$ss_blocks_mem" -eq 1 ]; then
