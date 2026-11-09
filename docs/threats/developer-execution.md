@@ -16,11 +16,16 @@ to `localhost`.
 Skill scanners are scoped to the agent-execution surface (`SKILL.md` plus agent-invoked scripts).
 SkillSpector does see a `.husky/` payload and does gate on exit code: it exits 1 above a
 `risk_score` of 50 (`DO_NOT_INSTALL`), and it blocks the same payload class in a `.test.ts`
-carrier at 64/100 and the git-hook carrier at 76/100. As of v2.13.0 it blocks both, so on this
+carrier at 64/100 and the git-hook carrier at 76/100. As of v2.13.4 it blocks both, so on this
 profile's two original carriers the field has caught up; `gate-proof.sh` prints the live numbers
-on every build. What it still clears is the persistent-memory-write carrier: 0/100 `SAFE`, "no
-security issues detected", so a CI gate on exit codes lets that one through.
-The research state of the art excludes the surface by scope.
+on every build. What it still clears is the persistent-memory-write carrier, and the reason is now
+a scoring one rather than a blind spot. v2.13.4 models the write: the report on that fixture
+carries one finding, `MP3 - Memory Manipulation`, HIGH, 85% confidence, with
+`carrier_kind=auto_run, destination=MEMORY.md` in its evidence. The holistic score is 27/100,
+under the `risk_score` threshold of 50, so it exits 0 and a CI gate on exit codes lets that one
+through. Which side of the line the same write lands on is decided by the payload text: 27/100
+with an inert canary, 63/100 and a block with a literal injection string, because that string adds
+two prose findings of its own. The research state of the art excludes the surface by scope.
 
 ## How this platform stops it
 [`skill-testfile-gate`](../../toolbox/skill-audit/skill-testfile-gate.sh) inventories the auto-run

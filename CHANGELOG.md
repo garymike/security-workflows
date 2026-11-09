@@ -6,6 +6,78 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.7.8] - 2026-11-06
+
+### Changed
+- **Drift bump: nine pins moved.** `betterleaks` 1.9.0 to 1.10.0, `trufflehog` 3.99.7 to 3.99.8,
+  `syft` 1.55.0 to 1.57.0, `pip` 26.2.2 to 26.3, `snyk-agent-scan` 0.6.10 to 0.6.11, `zizmor`
+  1.31.1 to 1.32.0, `semgrep` 1.183.0 to 1.184.0 (both pins, sast and the gate's malice engine),
+  `checkov` 3.4.2 to 3.4.3, and `skillspector` v2.13.2 to v2.13.4. skillspector stays a hand bump
+  for the reason recorded in 1.7.6: its ARG is a commit SHA, so `scripts/apply-tool-bumps.py`
+  refuses it rather than half-applying it. `v2.13.4` resolves to `54824463814a`.
+
+- **SkillSpector v2.13.4 scores the agent-memory write, so the differentiator is restated rather
+  than reworded.** The claim in `README.md` and `docs/` was that the write "is not modelled" and
+  that neither payload variant blocks. Both halves of that are now false, and the numbers moved
+  with them.
+
+  Measured on the same fixture across the three tags there are images for, rather than inferred
+  from release notes:
+
+  | tag | inert canary to `MEMORY.md` | literal injection string to `MEMORY.md` |
+  |---|---|---|
+  | v2.13.0 | 0/100, exit 0, no finding | 35/100, exit 0, no finding |
+  | v2.13.2 | 0/100, exit 0, no finding | 35/100, exit 0, no finding |
+  | **v2.13.4** | **27/100, exit 0, MP3 fires** | **63/100, exit 1, blocks** |
+
+  v2.13.4 reports the write explicitly. On the inert fixture the report carries exactly one
+  finding: `HIGH: MP3 - Memory Manipulation`, 85% confidence, evidence
+  `carrier_basename=notes.test.ts, carrier_kind=auto_run, destination=MEMORY.md`. It knows the
+  carrier is auto-run, knows the destination is agent memory, rates it HIGH, and exits 0, because
+  the verdict is a holistic `risk_score` and 27 is under 50.
+
+  Decomposed by holding the mechanism fixed and varying only the payload (v2.13.4, `--no-llm`):
+
+  | variant | findings | score | blocks? |
+  |---|---|---|---|
+  | write, inert canary | MP3 | 27/100 | no |
+  | write, literal injection string | MP3, P1, EA2 | 63/100 | yes |
+  | write to `CLAUDE.md`, same string | MP3, P1, EA2 | 63/100 | yes |
+  | *control:* same string as `SKILL.md` prose, no write | P1, EA2 | 27/100 | no |
+
+  The write alone is worth 27 and the injection prose alone is worth 27. Neither half reaches the
+  threshold; only the sum does. So what gets installed is the variant whose payload does not read
+  like an injection, which is the easier half to author. That is the differentiator now: not that
+  upstream cannot see the write, but that seeing it does not stop it, and that the payload wording
+  rather than the write decides the verdict. The gate blocks on the write itself, so wording does
+  not move it.
+
+  Reframed `README.md`, `docs/threat-model.md`, `docs/references.md`,
+  `docs/gecko-vector-walkthrough.md` (Step 6, which gains the report excerpt and the findings
+  column), `docs/threats/developer-execution.md`, `tests/gate-proof.sh`,
+  `toolbox/skill-audit/Dockerfile` and `toolbox/skill-audit/skill-testfile-gate.sh`. The four
+  unchanged fixture scores are unchanged: `gecko-demo` 64/100, `gecko-hook-demo` 76/100,
+  `config-injection-demo` 100/100, `sibling-config-demo` 51/100. `gate-proof.sh` passes 16 of 16
+  against the freshly built image.
+
+- **`gate-proof.sh` #4 records its own margin.** The hard assertion is unchanged, that
+  SkillSpector must not block `memory-poisoning-demo`, and it still passes. But it used to sit 50
+  points from flipping and now sits 23, so the header says so. If it flips, the gate's remaining
+  justification has changed and `docs/` gets re-measured rather than reworded.
+
+### Fixed
+- **The 1.7.6 entry's reasoning, not its conclusion.** It checked
+  [NVIDIA/SkillSpector#893](https://github.com/NVIDIA/SkillSpector/pull/893) against the commit
+  graph, found the merge commit 1196 commits ahead of the v2.13.2 tag, and concluded the `0/100`
+  figures were stable. The conclusion held for v2.13.2 and the predicted number was exactly right
+  (27/100), but the method could not have settled it: `git` still reports
+  `2de9b387...v2.13.4` as `diverged`, 183 ahead and 1196 behind, because that project cuts
+  releases from separate branches rather than from `main`. A merge commit's ancestry in `main` is
+  not a test of what a release does. The test is running the release against the fixture, which is
+  what `gate-proof.sh` does on every build and what the table above does across tags.
+
+---
+
 ## [1.7.7] - 2026-10-30
 
 ### Removed

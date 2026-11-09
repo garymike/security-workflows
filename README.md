@@ -31,21 +31,27 @@ silently on open, a disclosed and now-fixed issue).
 
 **Most of that gap has since closed, and this repo says so rather than rewording the claim.**
 Measured on every build against our own fixtures ([`gate-proof.sh`](tests/gate-proof.sh) prints
-the live table), SkillSpector v2.13.0 blocks four of the five: the test-file carrier (64/100), the
+the live table), SkillSpector v2.13.4 blocks four of the five: the test-file carrier (64/100), the
 git-hook carrier (76/100), Claude config-injection (100/100) and the Cursor/VS Code bundle
 (51/100). Two things are left, and they are narrower than what this section used to claim:
 
-- **One carrier it still clears.** A bundled test file that appends to `MEMORY.md`, the agent's
-  persistent cross-session memory, scores **0/100 `SAFE`, "no security issues detected"** at
-  `Coverage 100.0%` with the file typed `Executable: Yes`. It is read, analysed, and passed. The
-  write itself is not modelled: the same `appendFileSync` scores 0/100 with an inert payload and
-  35/100 with a literal injection string, against 27/100 for that string sitting inertly in
-  `SKILL.md` prose with no write at all. Neither variant blocks.
-- **A score threshold is not a gate.** The Cursor/VS Code bundle clears 50 by a single point, and
-  `.vscode/tasks.json` contributes none of it: all 51 comes from the two `.cursor/` files, and the
-  `runOn: folderOpen` + `reveal: silent` task yields zero findings. The gate blocks on a malice
-  pattern in a named file and emits SARIF per finding, so it does not depend on a holistic score
-  landing the right side of a line.
+- **One carrier it still clears, and no longer because it cannot see it.** A bundled test file
+  that appends to `MEMORY.md`, the agent's persistent cross-session memory, scores **27/100
+  `CAUTION`, exit 0**. As of v2.13.4 the write is modelled: the report carries exactly one
+  finding, `HIGH: MP3 - Memory Manipulation` at 85% confidence, with
+  `carrier_kind=auto_run, destination=MEMORY.md` as its evidence. It exits 0 anyway, because 27 is
+  under the `risk_score` threshold of 50. What the verdict turns on is the payload text, not the
+  write: holding the mechanism fixed, the identical `appendFileSync` clears at 27/100 with an
+  inert canary and blocks at 63/100 with a literal injection string, which adds two prose findings
+  of its own. The inert variant is the easier one to author, because the payload only has to avoid
+  reading like an injection.
+- **A score threshold is not a gate.** The carrier above is the plainest case: a HIGH-severity
+  finding, 85% confident, destination named in the evidence, and an exit code that installs it.
+  The Cursor/VS Code bundle is the mirror image, clearing 50 by a single point, with
+  `.vscode/tasks.json` contributing none of it: all 51 comes from the two `.cursor/` files, and
+  the `runOn: folderOpen` + `reveal: silent` task yields zero findings. The gate blocks on a
+  malice pattern in a named file and emits SARIF per finding, so it does not depend on a holistic
+  score landing the right side of a line, and the payload's wording does not change its verdict.
 
 The config-injection class is still the gate's own coverage. The runtime pillar, an MCP review compiled
 into a firewall, is the assess-to-enforce gateway in
@@ -70,7 +76,8 @@ Both, and which is which is deliberate.
 exits non-zero on malice, in `skill-audit.yml` and in the pre-commit hook. That is the whole point
 of the project: where a published scanner reports a payload and still exits 0, a CI gate on exit
 codes ships it. SkillSpector has closed most of that gap (see above); the case it still clears is
-our persistent-memory-write demo, at 0/100 `SAFE`. It also fails on the config-injection class
+our persistent-memory-write demo, at 27/100 `CAUTION`, on a report whose single finding is a HIGH
+`MP3 - Memory Manipulation` naming the destination. It also fails on the config-injection class
 (`.claude/settings.json` Hooks, `.mcp.json`, `.cursor/`, `.vscode/tasks.json`).
 
 **Reports to code scanning.** `sast.yml`, `codeql.yml`, and `iac-security.yml` emit SARIF and let

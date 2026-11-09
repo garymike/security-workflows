@@ -5,8 +5,9 @@
 # the signed base.
 #   = base + SkillSpector (agent-skill scanner: prompt injection, tool poisoning, data exfil,
 #     excessive agency) + a first-party test-file GATE for the DEVELOPER-execution surface.
-#     SkillSpector v2.13.0 blocks most of that surface too (test-file 64/100, git-hook 76/100,
-#     config-injection 100/100 and 51/100); it clears a write to persistent agent memory at 0/100.
+#     SkillSpector v2.13.4 blocks most of that surface too (test-file 64/100, git-hook 76/100,
+#     config-injection 100/100 and 51/100); it reports a write to persistent agent memory as a HIGH
+#     MP3 finding and clears it anyway at 27/100, under its own risk_score-50 threshold.
 #     The gate blocks every carrier, on the pattern rather than on a score threshold.
 # STATIC ANALYSIS ONLY. See docs/threat-model.md for the coverage map + residual gaps.
 #
@@ -18,11 +19,11 @@ ARG BASE=ghcr.io/garymike/security-workflows/security-toolbox-base:latest
 FROM ${BASE}
 
 # NVIDIA/SkillSpector. No PyPI package, so it is installed from git; pinned to the
-# commit a RELEASE TAG points at, not to a moving HEAD. v2.13.2 = abd82935b67f.
-ARG SKILLSPECTOR_REF=abd82935b67f765a9541013c0866c6349251dcdf
+# commit a RELEASE TAG points at, not to a moving HEAD. v2.13.4 = 54824463814a.
+ARG SKILLSPECTOR_REF=54824463814a0be01360792523ec7245a69190fc
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
-ARG SEMGREP_VERSION=1.183.0
+ARG SEMGREP_VERSION=1.184.0
 # PyJWT is deliberately NOT pinned here. It used to be: semgrep pinned pyjwt[crypto]~=2.13.0,
 # which held PyJWT at 2.13.0 and therefore at CVE-2026-102268 (CRITICAL, fixed in 2.14.0), so
 # this image installed 2.15.1 with --no-deps to defeat that constraint. As of semgrep 1.183.0
