@@ -7,8 +7,8 @@
 # --- security-toolbox-base (generic spine, shared by every domain image) ---
 betterleaks        1.10.0    github:betterleaks/betterleaks      # secret scanning (drop-in gitleaks successor)
 trufflehog         3.99.8    github:trufflesecurity/trufflehog   # verified-secret scanning
-osv-scanner        2.7.0     github:google/osv-scanner           # dependency CVEs
-syft               1.57.0    github:anchore/syft                 # SBOM generation
+osv-scanner        2.7.1     github:google/osv-scanner           # dependency CVEs
+syft               1.57.1    github:anchore/syft                 # SBOM generation
 pip                26.3      pypi:pip                            # vendors certifi; GHSA-6q48-6c7w-9gw2 needs >= 26.2.2
 #
 # --- mcp-review-toolbox (= security-toolbox-base + these) ---
