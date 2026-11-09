@@ -36,9 +36,20 @@ jobs:
       - name: Compare pins against upstream
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        # Exits 3 on drift. Red here means a pin is behind, not that anything is
-        # broken: images still build and publish. Fix by bumping tools.lock and the
+        # Exits 3 on drift. Red here usually means a pin is behind, not that anything
+        # is broken: images still build and publish. Fix by bumping tools.lock and the
         # matching Dockerfile ARG together, which the build gate then rebuilds and
         # rescans. A tool that cannot be resolved upstream is reported as unchecked
         # rather than counted as current.
+        #
+        # Red has a second meaning, and the badge does not distinguish them. On
+        # 2026-11-09 the scheduled run reported failure with zero jobs, zero check
+        # runs and no log: GitHub never started the job, so nothing was checked.
+        # Rerunning that same run, same event and sha, put the job through and it
+        # found the real drift, so the cause was upstream of this file. Before
+        # reading a red as a finding, confirm a job exists (runs/<id>/jobs
+        # total_count) and that the run carries the step-summary table and the
+        # ::warning:: annotations this script writes. A run that never started
+        # writes neither, and a watcher that did not watch looks exactly like a
+        # watcher that found nothing wrong.
         run: bash scripts/check-tool-updates.sh --fail-on-drift
