@@ -76,6 +76,34 @@ jobs:
           if [ "$rc" -gt 1 ]; then echo "::error::semgrep errored (rc=$rc)"; exit "$rc"; fi
           echo "semgrep finished (rc=$rc; 1 = findings, 0 = clean)"
 
+      - name: Drop suppressed results from the SARIF
+        # Semgrep honours an inline `# nosemgrep: <rule-id>` when it scans, but still writes
+        # the finding into the SARIF, as a result carrying `suppressions: [{"state":
+        # "accepted"}]`. GitHub code scanning does not honour SARIF suppressions, so the
+        # alert is re-asserted on every upload: the two dynamic-urllib-use-detected findings
+        # in scripts/ stayed open through the commit that added the nosemgrep, anchored on
+        # the exact lines carrying it. Same mechanism and same fix as iac-security.yml's
+        # Checkov step: remove suppressed results here, so an inline ignore means in code
+        # scanning what it means in Semgrep.
+        if: ${{ steps.semgrep.outputs.sarif == 'true' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = "out/semgrep.sarif"
+          with open(path, encoding="utf-8") as handle:
+              doc = json.load(handle)
+          dropped = 0
+          for run in doc.get("runs", []):
+              results = run.get("results", [])
+              kept = [r for r in results if not r.get("suppressions")]
+              dropped += len(results) - len(kept)
+              run["results"] = kept
+          with open(path + ".tmp", "w", encoding="utf-8") as handle:
+              json.dump(doc, handle)
+          os.replace(path + ".tmp", path)
+          print(f"dropped {dropped} suppressed result(s) from {path}")
+          PY
+
       - name: Upload SARIF to code scanning
         if: ${{ inputs.upload-sarif && steps.semgrep.outputs.sarif == 'true' }}
         uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
