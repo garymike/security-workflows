@@ -30,6 +30,12 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   `out/results_sarif.sarif` before upload, so an inline skip means in code scanning what it means
   in Checkov. Verified against Checkov 3.4.3 (the pinned toolbox version): the suppressed result
   carries `suppressions: [{"kind": "inSource", ...}]` and nothing else distinguishes it.
+- **`sast.yml` drops Semgrep's suppressed results before uploading the SARIF**, for the same reason
+  as the Checkov step above. Semgrep honours `# nosemgrep: <rule-id>` when scanning but writes the
+  finding into its SARIF as a result with `suppressions: [{"state": "accepted"}]`, which GitHub
+  ignores: the two `dynamic-urllib-use-detected` alerts stayed open through the 1.7.8+ commit that
+  added the `nosemgrep`, re-anchored on the exact lines carrying it. Read from the uploaded
+  analysis itself (`Accept: application/sarif+json`), not inferred.
 - **Three open code-scanning findings cleared.** `build-toolbox.yml`'s "Compute image tags" step
   read `matrix.image` and `matrix.context` through `${{ }}` inside `run:` (Semgrep
   `run-shell-injection`, error); they now arrive through `env:`. `scripts/check-image-pins.py`
