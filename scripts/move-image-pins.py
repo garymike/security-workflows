@@ -61,11 +61,14 @@ def tag_digest(pins, repo_path, tag):
     """Resolve a tag to the digest a pin should name (the index digest the build reported)."""
     scope = "repository:{}:pull".format(repo_path)
     token = pins.get("https://ghcr.io/token?scope={}&service=ghcr.io".format(scope))["token"]
-    request = urllib.request.Request(
-        "https://ghcr.io/v2/{}/manifests/{}".format(repo_path, tag), method="HEAD")
+    url = "https://ghcr.io/v2/{}/manifests/{}".format(repo_path, tag)
+    # Same guard as the checker's get(): the token is scoped to GHCR, so the URL must be too.
+    if not url.startswith(pins.REGISTRY):
+        raise ValueError("refusing to open a URL outside {}: {}".format(pins.REGISTRY, url))
+    request = urllib.request.Request(url, method="HEAD")
     request.add_header("Authorization", "Bearer " + token)
     request.add_header("Accept", pins.ACCEPT)
-    with urllib.request.urlopen(request, timeout=30) as response:
+    with urllib.request.urlopen(request, timeout=30) as response:  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         digest = response.headers["Docker-Content-Digest"]
     if not digest:
         raise RuntimeError("no Docker-Content-Digest header for " + tag)

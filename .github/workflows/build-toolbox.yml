@@ -202,8 +202,14 @@ jobs:
 
       - name: Compute image tags
         id: prep
+        # Matrix values reach the shell through env, not template interpolation, so a
+        # value can never be parsed as shell (Semgrep run-shell-injection). The matrix is
+        # static today; this keeps it safe if it ever is not.
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+          CONTEXT: ${{ matrix.context }}
         run: |
-          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/${{ matrix.image }}"
+          IMAGE="ghcr.io/${GITHUB_REPOSITORY,,}/${IMAGE_NAME}"
           # Fingerprint of this repo's tracked build inputs for this image, stamped onto the
           # image below as a label so scripts/check-image-pins.py can ask a PINNED image
           # which inputs it came from. `git ls-files -s` prints mode, blob sha and path in a
@@ -212,7 +218,7 @@ jobs:
           # every rebuild publishes a new digest. Keep these paths in step with PINNED there.
           # toolbox/base is an input to every domain image, because each one is built
           # FROM the base by digest in the push step below.
-          CTX="${{ matrix.context }}"
+          CTX="${CONTEXT}"
           STAMP="$(git ls-files -s -- toolbox/base "${CTX#./}" toolbox/tools.lock | sha256sum | cut -d" " -f1)"
           {
             echo "image=$IMAGE"

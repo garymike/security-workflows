@@ -1,7 +1,31 @@
 name: Security audit (reusable)
 
+# Repository-settings audit, run weekly by every caller.
+#
+# Most of what it looks at (Dependabot alerts and auto-fix, Actions default permissions,
+# delete-branch-on-merge, classic branch protection) sits behind `administration: read`,
+# which the automatic GITHUB_TOKEN never has, whatever the caller's `permissions:` says.
+# Until 2026-11-12 every call that came back 403 was reported as "disabled", so this job
+# emitted the same four warnings on every repo every week while all four settings were on.
+# A check that is red everywhere is read nowhere, and a real regression would have hidden
+# inside it.
+#
+# Now a 403, or a field the token cannot see, is a ::notice:: that names the missing scope,
+# and only an answer the token actually received is scored. Branch protection is first read
+# through the rulesets endpoint, which plain read access can see, so repos protected by a
+# ruleset are scored correctly with no extra token. Callers that want the admin-only checks
+# to produce verdicts pass `admin-token`: a fine-grained PAT with repository
+# `Administration: read` (and `Metadata: read`), nothing more.
+
 on:
   workflow_call:
+    secrets:
+      admin-token:
+        description: >-
+          Optional. A fine-grained token with repository Administration: read. Without it
+          the Dependabot, Actions-permissions, delete-branch-on-merge and classic-branch-
+          protection checks report a notice ("not visible to this token") instead of a verdict.
+        required: false
 
 permissions:
   contents: read
@@ -15,59 +39,118 @@ jobs:
     # 2.5x the worst of five observed runs (11s), at the floor.
     timeout-minutes: 2
     env:
-      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN: ${{ secrets.admin-token || secrets.GITHUB_TOKEN }}
+      HAS_ADMIN_TOKEN: ${{ secrets.admin-token != '' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
+      # Shared helpers, sourced by the steps below.
+      # http_code: the HTTP status of a GET, or 000 when gh never got a response. `gh api -i`
+      # prints the status line first even on a non-2xx and exits non-zero, so take the first
+      # line and swallow the exit code.
+      # skipped: what to say when the token cannot see a setting. A notice without the
+      # optional admin token (expected), a warning with it (the token is wrong).
+      - name: Define helpers
+        run: |
+          cat > "$RUNNER_TEMP/audit.sh" <<'HELPERS'
+          http_code() {
+            local line
+            line=$(gh api "$1" -i 2>/dev/null | head -1)
+            case "$line" in
+              HTTP/*) echo "$line" | awk '{print $2}' ;;
+              *) echo 000 ;;
+            esac
+          }
+          skipped() {
+            if [ "$HAS_ADMIN_TOKEN" = "true" ]; then
+              echo "::warning::$1: the admin-token was rejected (HTTP 403) — check that it carries repository '$2' for $GITHUB_REPOSITORY"
+            else
+              echo "::notice::$1: not visible to this token (needs repository '$2'; pass secrets.admin-token to the security-audit job to turn this into a verdict)"
+            fi
+          }
+          HELPERS
+
       - name: Check Dependabot alerts
         run: |
-          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/vulnerability-alerts" -i 2>&1 | head -1)
-          if echo "$STATUS" | grep -q "204"; then
-            echo "Dependabot alerts: enabled"
-          else
-            echo "::warning::Dependabot alerts are disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings/security_analysis"
-          fi
+          . "$RUNNER_TEMP/audit.sh"
+          case "$(http_code "repos/$GITHUB_REPOSITORY/vulnerability-alerts")" in
+            204) echo "Dependabot alerts: enabled" ;;
+            404) echo "::warning::Dependabot alerts are disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings/security_analysis" ;;
+            403) skipped "Dependabot alerts" "Administration: read" ;;
+            *)   echo "::notice::Dependabot alerts: no usable answer from the API; not scored" ;;
+          esac
 
       - name: Check Dependabot auto-fix
         run: |
-          STATUS=$(gh api "repos/$GITHUB_REPOSITORY/automated-security-fixes" -i 2>&1 | head -1)
-          if echo "$STATUS" | grep -q "204"; then
-            echo "Dependabot auto-fix: enabled"
-          else
-            echo "::warning::Dependabot automated security fixes are disabled"
-          fi
+          . "$RUNNER_TEMP/audit.sh"
+          case "$(http_code "repos/$GITHUB_REPOSITORY/automated-security-fixes")" in
+            204) echo "Dependabot auto-fix: enabled" ;;
+            404) echo "::warning::Dependabot automated security fixes are disabled" ;;
+            403) skipped "Dependabot auto-fix" "Administration: read" ;;
+            *)   echo "::notice::Dependabot auto-fix: no usable answer from the API; not scored" ;;
+          esac
 
       - name: Check Actions default permissions
         run: |
-          PERMS=$(gh api "repos/$GITHUB_REPOSITORY/actions/permissions/workflow" --jq '.default_workflow_permissions' 2>/dev/null || true)
-          if [ "$PERMS" = "read" ]; then
-            echo "Actions default permissions: read-only"
-          else
-            echo "::warning::Actions permissions are '$PERMS' — recommend 'read' at: https://github.com/$GITHUB_REPOSITORY/settings/actions"
-          fi
+          . "$RUNNER_TEMP/audit.sh"
+          EP="repos/$GITHUB_REPOSITORY/actions/permissions/workflow"
+          case "$(http_code "$EP")" in
+            200)
+              PERMS=$(gh api "$EP" --jq '.default_workflow_permissions' 2>/dev/null || true)
+              if [ "$PERMS" = "read" ]; then
+                echo "Actions default permissions: read-only"
+              else
+                echo "::warning::Actions default permissions are '$PERMS' — recommend 'read' at: https://github.com/$GITHUB_REPOSITORY/settings/actions"
+              fi ;;
+            403) skipped "Actions default permissions" "Administration: read" ;;
+            *)   echo "::notice::Actions default permissions: no usable answer from the API; not scored" ;;
+          esac
 
       - name: Check delete-branch-on-merge
         run: |
-          DBM=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.delete_branch_on_merge' 2>/dev/null || true)
-          if [ "$DBM" = "true" ]; then
-            echo "Delete branch on merge: enabled"
-          else
-            echo "::warning::Delete-branch-on-merge is disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings"
-          fi
+          . "$RUNNER_TEMP/audit.sh"
+          # The field is only present in the repository object for tokens with push or
+          # admin access; for everyone else it is absent, which is not the same as false.
+          DBM=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.delete_branch_on_merge // "unknown"' 2>/dev/null || echo unknown)
+          case "$DBM" in
+            true)  echo "Delete branch on merge: enabled" ;;
+            false) echo "::warning::Delete-branch-on-merge is disabled — enable at: https://github.com/$GITHUB_REPOSITORY/settings" ;;
+            *)     skipped "Delete-branch-on-merge" "Administration: read" ;;
+          esac
 
       - name: Check branch protection
         run: |
+          . "$RUNNER_TEMP/audit.sh"
           BRANCH=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.default_branch' 2>/dev/null || true)
-          HTTP=$(gh api "repos/$GITHUB_REPOSITORY/branches/$BRANCH/protection" -i 2>&1 | head -1)
-          if echo "$HTTP" | grep -q "200"; then
-            echo "Branch protection: configured on '$BRANCH'"
-          elif echo "$HTTP" | grep -q "403"; then
-            echo "::notice::Branch protection requires GitHub Pro for private repositories"
-          else
-            echo "::warning::No branch protection on '$BRANCH' — configure at: https://github.com/$GITHUB_REPOSITORY/settings/branches"
+          if [ -z "$BRANCH" ]; then
+            echo "::notice::Branch protection: could not read the default branch; not scored"
+            exit 0
           fi
+
+          # Rulesets first: "get rules for a branch" needs only read access, so this is a
+          # real verdict on every repo, including the ones where the classic endpoint 403s.
+          RULES=$(gh api "repos/$GITHUB_REPOSITORY/rules/branches/$BRANCH" --jq '[.[].type] | unique | join(", ")' 2>/dev/null || true)
+          if [ -n "$RULES" ]; then
+            echo "Branch protection: '$BRANCH' is protected by ruleset rule(s): $RULES"
+            exit 0
+          fi
+
+          EP="repos/$GITHUB_REPOSITORY/branches/$BRANCH/protection"
+          case "$(http_code "$EP")" in
+            200) echo "Branch protection: classic protection configured on '$BRANCH'" ;;
+            404) echo "::warning::No branch protection on '$BRANCH' (no rulesets, no classic protection) — configure at: https://github.com/$GITHUB_REPOSITORY/settings/branches" ;;
+            403)
+              # Two different 403s: the plan does not allow it, or the token cannot see it.
+              BODY=$(gh api "$EP" 2>&1 || true)
+              if echo "$BODY" | grep -qi "Upgrade to GitHub Pro"; then
+                echo "::notice::Branch protection requires GitHub Pro (or Team) for private repositories; no rulesets found on '$BRANCH'"
+              else
+                skipped "Classic branch protection on '$BRANCH' (no rulesets found)" "Administration: read"
+              fi ;;
+            *)   echo "::notice::Branch protection: no usable answer from the API; not scored" ;;
+          esac
 
       - name: Check SECURITY.md
         run: |

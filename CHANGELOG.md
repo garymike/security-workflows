@@ -6,6 +6,37 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **`security-audit.yml` no longer warns about settings it cannot see.** Four of its checks
+  (Dependabot alerts, Dependabot auto-fix, Actions default permissions, delete-branch-on-merge)
+  and the classic branch-protection check read endpoints that need repository
+  `Administration: read`, which the automatic `GITHUB_TOKEN` never has. Every 403 was being
+  reported as "disabled", so the job emitted the same four warnings on every caller every week
+  while all four settings were on; found by the 2026-11-10 estate audit, which had to score those
+  settings from direct API reads and ignore the job. A 403, or a field absent for the token, is now
+  a `::notice::` naming the missing scope, and only an answer the token actually received is
+  scored. Branch protection is read through the rulesets endpoint first, which plain read access
+  can see, so ruleset-protected repos score correctly with no extra token, and the "requires Pro"
+  notice is only emitted when the API says so. A new optional `admin-token` secret (fine-grained
+  PAT, `Administration: read`) turns the notices back into verdicts; with it set, a 403 is a
+  warning that the token is wrong.
+- **`iac-security.yml` drops Checkov's suppressed results before uploading the SARIF.** Checkov
+  honours an inline `# checkov:skip=` when it scans, but writes the finding into its SARIF anyway
+  as a result with an `inSource` suppression, and GitHub code scanning ignores SARIF suppressions.
+  Two `CKV_DOCKER_2` alerts on `security-agents` sat open from 2026-07-09 to 2026-11-12 with the
+  skip comment in place the whole time. A new step removes suppressed results from
+  `out/results_sarif.sarif` before upload, so an inline skip means in code scanning what it means
+  in Checkov. Verified against Checkov 3.4.3 (the pinned toolbox version): the suppressed result
+  carries `suppressions: [{"kind": "inSource", ...}]` and nothing else distinguishes it.
+- **Three open code-scanning findings cleared.** `build-toolbox.yml`'s "Compute image tags" step
+  read `matrix.image` and `matrix.context` through `${{ }}` inside `run:` (Semgrep
+  `run-shell-injection`, error); they now arrive through `env:`. `scripts/check-image-pins.py`
+  and `scripts/move-image-pins.py` open registry URLs built at runtime (Semgrep
+  `dynamic-urllib-use-detected`, warning ×2); both now refuse any URL outside `https://ghcr.io/`
+  before opening it, which is the condition the inline `nosemgrep` records.
+
 ## [1.7.8] - 2026-11-06
 
 ### Changed
