@@ -255,7 +255,7 @@ it ships with this pre-wired.
 | Workflow | Call style | What it does | Notes |
 |---|---|---|---|
 | `security-scan.yml` | push / PR | Secret scanning (betterleaks from the pinned image), unpinned-action detection, SECURITY.md presence | `fail-on-findings` input |
-| `security-audit.yml` | schedule | Repo settings: Dependabot alerts and auto-fix, Actions default permissions, delete-branch-on-merge, branch protection, SECURITY.md | Weekly is a sensible default |
+| `security-audit.yml` | schedule | Repo settings: Dependabot alerts and auto-fix, Actions default permissions, delete-branch-on-merge, branch protection (rulesets or classic), SECURITY.md, declared vs actual visibility | Weekly is a sensible default. The four admin-only checks need repository `Administration: read`, which `GITHUB_TOKEN` cannot carry; without the optional `admin-token` secret they report a notice, not a verdict |
 | `gha-security.yml` | `workflow_call` | Audits the caller's Actions workflows with `gha-toolbox`: zizmor (expression and template injection, excessive permissions, unpinned actions) plus actionlint (syntax and embedded shell via shellcheck) | |
 | `skill-audit.yml` | `workflow_call` | SkillSpector for the agent-execution surface, plus the first-party `skill-testfile-gate` for the developer-execution and config-injection surfaces. Two layers: presence (inventory) and malice (a Semgrep rule pack that blocks and emits SARIF) | **Blocks.** Needs `security-events: write` and `packages: read`. See the [walkthrough](docs/gecko-vector-walkthrough.md) |
 | `sast.yml` | `workflow_call` | Semgrep OSS from `sast-toolbox`; SARIF to code scanning. Portable across public and private repos | |

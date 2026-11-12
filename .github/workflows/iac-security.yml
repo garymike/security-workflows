@@ -72,6 +72,36 @@ jobs:
           echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
           echo "checkov finished (rc=$rc; non-zero = findings)"
 
+      - name: Drop suppressed results from the SARIF
+        # Checkov honours an inline `# checkov:skip=CKV_...: reason` when it scans (the
+        # summary says "Skipped: 1"), but it still writes the finding into the SARIF, as a
+        # result carrying an `inSource` suppression. GitHub code scanning does not honour
+        # SARIF suppressions, so every upload re-asserted the alert: two CKV_DOCKER_2 alerts
+        # on security-agents sat open from 2026-07-09 to 2026-11-12 with the skip comment in
+        # place the whole time. Remove suppressed results here, so an inline skip means in
+        # code scanning what it means in Checkov. A `skip-check` in .checkov.yaml never
+        # reaches the SARIF and is unaffected.
+        if: ${{ steps.checkov.outputs.sarif == 'true' }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          path = "out/results_sarif.sarif"
+          with open(path, encoding="utf-8") as handle:
+              doc = json.load(handle)
+          dropped = 0
+          for run in doc.get("runs", []):
+              results = run.get("results", [])
+              kept = [r for r in results if not r.get("suppressions")]
+              dropped += len(results) - len(kept)
+              run["results"] = kept
+          # The container's user owns the file; the directory is ours, so replace rather
+          # than rewrite in place.
+          with open(path + ".tmp", "w", encoding="utf-8") as handle:
+              json.dump(doc, handle)
+          os.replace(path + ".tmp", path)
+          print(f"dropped {dropped} suppressed result(s) from {path}")
+          PY
+
       - name: Upload SARIF to code scanning
         if: ${{ inputs.upload-sarif && steps.checkov.outputs.sarif == 'true' }}
         uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0

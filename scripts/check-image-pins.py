@@ -66,13 +66,21 @@ def stamp(context):
     return hashlib.sha256(sh("git", "ls-files", "-s", "--", *paths).encode()).hexdigest()
 
 
+REGISTRY = "https://ghcr.io/"
+
+
 def get(url, token=None, accept=None):
+    # Every URL this script opens is REGISTRY plus a repo path and a digest or tag read
+    # from our own pinned workflow files. Refuse anything else, so the GHCR bearer token
+    # can never be sent elsewhere; that guard is what the nosemgrep below relies on.
+    if not url.startswith(REGISTRY):
+        raise ValueError("refusing to open a URL outside {}: {}".format(REGISTRY, url))
     req = urllib.request.Request(url)
     if token:
         req.add_header("Authorization", "Bearer " + token)
     if accept:
         req.add_header("Accept", accept)
-    with urllib.request.urlopen(req, timeout=30) as response:
+    with urllib.request.urlopen(req, timeout=30) as response:  # nosemgrep: python.lang.security.audit.dynamic-urllib-use-detected.dynamic-urllib-use-detected
         return json.load(response)
 
 
