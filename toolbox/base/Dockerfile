@@ -12,7 +12,7 @@
 #     SHA-256 checksums at build time.
 # Keep the ARG versions below in sync with toolbox/tools.lock.
 
-FROM python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83 AS downloader
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9 AS downloader
 
 ARG BETTERLEAKS_VERSION=1.10.0
 ARG TRUFFLEHOG_VERSION=3.99.8
@@ -72,7 +72,7 @@ RUN set -eux; \
 
 
 # --------------------------------------------------------------------------- #
-FROM python:3.14-slim-bookworm@sha256:48b13b003dda20b16f9442b8475aa05fe21bf6579a8c881db92ffb4d8fd20f83
+FROM python:3.15-slim-bookworm@sha256:96599df822d0e1c6bb700014a05c7f3c8cabc6e0f7ff3c4f9f69cee033b4b5d9
 
 ARG PIP_VERSION=26.3
 
