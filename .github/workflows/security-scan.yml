@@ -37,9 +37,11 @@ jobs:
         run: |
           UNPINNED=0
           while IFS= read -r file; do
+            n=0
             while IFS= read -r line; do
+              n=$((n + 1))
               if echo "$line" | grep -qE '^\s+uses:\s+\S+@(v[0-9]|main|master|latest)'; then
-                echo "::warning file=$file::Unpinned action: $(echo "$line" | xargs)"
+                echo "::warning file=$file,line=$n::Unpinned action. Pin to a full commit SHA for supply-chain safety."
                 UNPINNED=$((UNPINNED + 1))
               fi
             done < "$file"
@@ -65,9 +67,11 @@ jobs:
         run: |
           DATED=0
           while IFS= read -r file; do
+            n=0
             while IFS= read -r line; do
-              if echo "$line" | grep -qE '^[[:space:]]*uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]*#.*@[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
-                echo "::warning file=$file::Dated comment beside a SHA pin, which nothing keeps current: $(echo "$line" | xargs)"
+              n=$((n + 1))
+              if echo "$line" | grep -qE '^[[:space:]]*(-[[:space:]]+)?uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]*#.*@[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+                echo "::warning file=$file,line=$n::Dated comment beside a SHA pin, which nothing keeps current. Drop the date; the SHA is the record."
                 DATED=$((DATED + 1))
               fi
             done < "$file"
