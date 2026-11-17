@@ -23,7 +23,7 @@ FROM ${BASE}
 ARG SKILLSPECTOR_REF=54824463814a0be01360792523ec7245a69190fc
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
-ARG SEMGREP_VERSION=1.184.0
+ARG SEMGREP_VERSION=1.185.0
 # PyJWT is deliberately NOT pinned here. It used to be: semgrep pinned pyjwt[crypto]~=2.13.0,
 # which held PyJWT at 2.13.0 and therefore at CVE-2026-102268 (CRITICAL, fixed in 2.14.0), so
 # this image installed 2.15.1 with --no-deps to defeat that constraint. As of semgrep 1.183.0
