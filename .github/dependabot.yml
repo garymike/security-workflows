@@ -41,9 +41,18 @@ updates:
 
   # gha-toolbox's downloader stage pins the python base image directly, so unlike
   # the other domain images it has its own upstream OS-image dependency.
-  # Keep it on the same Python as toolbox/base so the whole toolbox builds on one
-  # runtime; both are updated by the same weekly schedule and both are built by
-  # the same CI gate, so a drift between them fails the build rather than shipping.
+  #
+  # That stage runs no Python. It exists to curl actionlint, checksum-verify it and
+  # install the binary; the final stage builds FROM ${BASE}, so the Python that ships in
+  # gha-toolbox is security-toolbox-base's, never this pin's. A difference between this
+  # pin and toolbox/base is therefore cosmetic rather than a runtime drift.
+  #
+  # This comment used to claim the two are built by the same CI gate, "so a drift
+  # between them fails the build rather than shipping". That was untrue and untested.
+  # Nothing compares the two pins. #110 bumped this stage to 3.15 against a 3.14 base
+  # and went green on all nine checks, which is what exposed it. Keeping them equal is
+  # housekeeping, one fewer upstream digest to follow, not an invariant. Do not rely on
+  # CI to catch a mismatch here.
   - package-ecosystem: docker
     directory: /toolbox/gha
     schedule:
