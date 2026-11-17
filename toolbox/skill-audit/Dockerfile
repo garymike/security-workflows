@@ -20,7 +20,7 @@ FROM ${BASE}
 
 # NVIDIA/SkillSpector. No PyPI package, so it is installed from git; pinned to the
 # commit a RELEASE TAG points at, not to a moving HEAD. v2.13.4 = 54824463814a.
-ARG SKILLSPECTOR_REF=54824463814a0be01360792523ec7245a69190fc
+ARG SKILLSPECTOR_REF=e2674da339b0bddc6e565d059c0577c6d9cd25da
 # Semgrep drives the test-file gate's malice layer. Pinned explicitly (not left to
 # SkillSpector's transitive pull) and kept in sync with sast-toolbox / toolbox/tools.lock.
 ARG SEMGREP_VERSION=1.185.0
