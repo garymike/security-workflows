@@ -31,13 +31,13 @@ silently on open, a disclosed and now-fixed issue).
 
 **Most of that gap has since closed, and this repo says so rather than rewording the claim.**
 Measured on every build against our own fixtures ([`gate-proof.sh`](tests/gate-proof.sh) prints
-the live table), SkillSpector v2.13.4 blocks four of the five: the test-file carrier (64/100), the
+the live table), SkillSpector v2.13.6 blocks four of the five: the test-file carrier (64/100), the
 git-hook carrier (76/100), Claude config-injection (100/100) and the Cursor/VS Code bundle
 (51/100). Two things are left, and they are narrower than what this section used to claim:
 
 - **One carrier it still clears, and no longer because it cannot see it.** A bundled test file
   that appends to `MEMORY.md`, the agent's persistent cross-session memory, scores **27/100
-  `CAUTION`, exit 0**. As of v2.13.4 the write is modelled: the report carries exactly one
+  `CAUTION`, exit 0**. As of v2.13.6 the write is modelled: the report carries exactly one
   finding, `HIGH: MP3 - Memory Manipulation` at 85% confidence, with
   `carrier_kind=auto_run, destination=MEMORY.md` as its evidence. It exits 0 anyway, because 27 is
   under the `risk_score` threshold of 50. What the verdict turns on is the payload text, not the

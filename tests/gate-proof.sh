@@ -13,7 +13,7 @@
 #               single point, so hard-asserting it would turn this gate red on any minor upstream
 #               rescoring, which is the cry-wolf signal we avoid elsewhere.
 #               What IS hard-asserted: SkillSpector must NOT block memory-poisoning-demo. As of
-#               v2.13.4 it scores that fixture 27/100 CAUTION and exits 0, on a report whose ONLY
+#               v2.13.6 it scores that fixture 27/100 CAUTION and exits 0, on a report whose ONLY
 #               finding is the write itself: "HIGH: MP3 - Memory Manipulation", 85% confidence,
 #               evidence carrier_kind=auto_run destination=MEMORY.md. So this is not a blind spot
 #               any more, it is a threshold: the scanner names the write, rates it HIGH, and exits
