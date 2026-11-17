@@ -59,7 +59,7 @@ jobs:
           # Pinned by digest, not :latest, to match security-scan.yml. A toolbox
           # rebuild otherwise changes what every caller scans with, without any
           # caller changing a line. Bump deliberately, alongside toolbox/tools.lock.
-          IMAGE: ghcr.io/garymike/security-workflows/skill-audit-toolbox@sha256:ef278f70d57a7840e5d2269603cdda25bf82bebad1060b241802e9bc913db6ab
+          IMAGE: ghcr.io/garymike/security-workflows/skill-audit-toolbox@sha256:3fe8262c5163ccdacc47deeea6d074d4f63cd521adb2fba8e911bf0a6c418822
           SCAN_PATH: ${{ inputs.path }}
           FAIL: ${{ inputs.fail-on-findings }}
           GATE_FAIL: ${{ inputs.gate-fail-on-findings }}
