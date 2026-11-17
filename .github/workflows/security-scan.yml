@@ -50,6 +50,34 @@ jobs:
             echo "All actions are pinned or no workflows found."
           fi
 
+      - name: Check SHA pins carry no dated comment
+        # Dependabot rewrites a trailing version comment only when the ref is a tag.
+        # Beside a commit SHA there is no version to write, so a date put there is never
+        # updated: it goes stale on the next bump and then stays stale, because nothing
+        # reads it. Measured, not hypothetical. Nine repos in this account carried dates
+        # up to 43 days wrong, and three of them labelled the SAME commit with three
+        # different dates. The SHA is the record; resolve it if you need to date a pin.
+        #
+        # A warning rather than a failure, matching the pinning check above. This is
+        # stale prose, not a security defect, and a reusable workflow should not fail a
+        # caller's build over a comment. Callers see it when their pin to this workflow
+        # next moves, so the rollout is gradual by construction.
+        run: |
+          DATED=0
+          while IFS= read -r file; do
+            while IFS= read -r line; do
+              if echo "$line" | grep -qE '^[[:space:]]*uses:[[:space:]]+[^[:space:]]+@[0-9a-f]{40}[[:space:]]*#.*@[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}'; then
+                echo "::warning file=$file::Dated comment beside a SHA pin, which nothing keeps current: $(echo "$line" | xargs)"
+                DATED=$((DATED + 1))
+              fi
+            done < "$file"
+          done < <(find .github/workflows -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+          if [ "$DATED" -gt 0 ]; then
+            echo "::warning::$DATED SHA pin(s) carry a date comment. Drop the date; the SHA is the record."
+          else
+            echo "No dated comments beside SHA pins."
+          fi
+
       - name: Check SECURITY.md exists
         run: |
           if [ -f SECURITY.md ] || [ -f .github/SECURITY.md ]; then
