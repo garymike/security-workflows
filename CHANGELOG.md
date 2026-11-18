@@ -9,6 +9,27 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **`sast.yml` retains its findings instead of discarding them.** The workflow built a SARIF,
+  filtered it, and then had nowhere to put it: `Upload SARIF to code scanning` is gated on
+  `upload-sarif`, `Enforce fail-on-findings` on `fail-on-findings`, and there was no
+  artifact-upload step anywhere in the file (`grep -c upload-artifact` over it returned 0). With
+  both inputs false the job concluded success having retained nothing, so a finding existed only
+  as a line of plain stdout in a log nobody reads. Measured on a private caller's run against
+  `sast.yml` pinned at `d6dae17`: Semgrep reported `Ran 274 rules on 167 files: 5 findings`,
+  `Findings: 5 (5 blocking)`, both the upload and the enforce step concluded `skipped`, the run
+  reported `total_count=0` artifacts, and the job's only annotation was the unrelated
+  `ubuntu-latest` migration notice. Nine of the fourteen `sast.yml` call sites
+  in the estate pass `upload-sarif: false`, and all nine are private repos, because code scanning
+  needs Advanced Security on a private repo; those callers carry the comment "keep the artifact
+  instead", which nothing was doing. Two steps close it. The finding count, a severity tally and
+  a located table now go to `$GITHUB_STEP_SUMMARY`, counted after the suppression drop so the
+  number matches what code scanning would show rather than what Semgrep's exit code implies. The
+  SARIF and that summary are then uploaded as the `sast-sarif` artifact, with
+  `if-no-files-found: error` because a silently empty artifact is the bug being fixed, and
+  `retention-days: 30` because artifact storage is metered on a private repo. The artifact step is
+  keyed on the upload step's `outcome`, not on `inputs.upload-sarif`, so a private caller that
+  left the input at its default `true` and hit the same Advanced Security wall also keeps its
+  evidence.
 - **`security-audit.yml` no longer warns about settings it cannot see.** Four of its checks
   (Dependabot alerts, Dependabot auto-fix, Actions default permissions, delete-branch-on-merge)
   and the classic branch-protection check read endpoints that need repository
