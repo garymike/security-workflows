@@ -116,10 +116,40 @@ jobs:
           # nothing for every caller. The working directory is already /src.
           # --verbose prints rule, path, line and a redacted excerpt, so a
           # failure says what to look at. --redact keeps values out of the log.
-          if docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE"                betterleaks dir . --no-banner --redact --verbose; then
+          #
+          # The output is tee'd so the count can reach the job summary, where a
+          # reviewer sees it without opening the log. Only the count goes there:
+          # no rule, path or excerpt, and nothing is kept as an artifact, because a
+          # secret-scan report on a public repo's run page is a map of where to look.
+          # pipefail makes rc betterleaks's own exit code, not tee's.
+          report="$RUNNER_TEMP/betterleaks.txt"
+          rc=0
+          docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE"                betterleaks dir . --no-banner --redact --verbose 2>&1 | tee "$report" || rc=$?
+          # betterleaks ends with a log line "<time> WRN leaks found: N" (exit 1) or
+          # "<time> INF no leaks found" (exit 0). Its report echoes excerpts of the
+          # scanned files, which a fork PR controls, so the match is anchored to that
+          # whole log line; excerpt lines start with box-drawing characters and cannot
+          # match. A non-zero exit with no such line is reported as unknown, not 0.
+          count=$(sed 's/\x1b\[[0-9;]*m//g' "$report" | grep -E '^[0-9]{1,2}:[0-9]{2}(AM|PM) WRN leaks found: [0-9]+$' | tail -1 | grep -oE '[0-9]+$' || true)
+          if [ "$rc" -eq 0 ]; then count=0; fi
+          if [ "$rc" -ne 0 ] && [ "$count" = 0 ]; then count=""; fi
+          {
+            if [ -n "$count" ]; then
+              echo "## Secret scan (betterleaks): $count potential secret$([ "$count" = 1 ] || echo s)"
+            else
+              echo "## Secret scan (betterleaks): did not complete (exit $rc)"
+              echo ""
+              echo "No count could be read from its output; see the job log."
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo ""
+              echo "Details are in the job log, redacted. A false positive goes in \`.gitleaksignore\` in this repo."
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -eq 0 ]; then
             echo "betterleaks: no secrets found."
           else
-            echo "::error::betterleaks reported potential secrets. Review the findings above; if one is a false positive, add its fingerprint to .gitleaksignore in the caller repo."
+            echo "::error::betterleaks reported ${count:-an unknown number of} potential secret(s). Review the findings above; if one is a false positive, add its fingerprint to .gitleaksignore in the caller repo."
             if [ "$FAIL" = "true" ]; then exit 1; fi
             echo "::warning::continuing (fail-on-findings=false)."
           fi

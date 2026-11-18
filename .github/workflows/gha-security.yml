@@ -49,14 +49,55 @@ jobs:
           set -uo pipefail
           docker pull "$IMAGE"
           rc=0
+          # Each tool's output is tee'd so its count can reach the job summary and the
+          # annotation; before, "found issues" said that something was wrong but not
+          # how much. Counts only, nothing retained: the detail stays in the log.
+          # pipefail makes each rc the tool's own exit code, not tee's.
+          al_out="$RUNNER_TEMP/actionlint.txt"; zz_out="$RUNNER_TEMP/zizmor.txt"
+          al_rc=0; zz_rc=0
           echo "::group::actionlint"
-          docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" actionlint -color || rc=$?
+          docker run --rm -v "$PWD:/src:ro" -w /src "$IMAGE" actionlint -color 2>&1 | tee "$al_out" || al_rc=$?
           echo "::endgroup::"
           echo "::group::zizmor"
-          docker run --rm -e GH_TOKEN -v "$PWD:/src:ro" -w /src "$IMAGE" zizmor . || rc=$?
+          docker run --rm -e GH_TOKEN -v "$PWD:/src:ro" -w /src "$IMAGE" zizmor . 2>&1 | tee "$zz_out" || zz_rc=$?
           echo "::endgroup::"
+          [ "$al_rc" -ne 0 ] && rc=$al_rc
+          [ "$zz_rc" -ne 0 ] && rc=$zz_rc
+          strip() { sed 's/\x1b\[[0-9;]*m//g' "$1"; }
+          # Both tools echo snippets of the scanned files, which a fork PR controls, so
+          # every match is anchored to a whole line in the tool's own format. Snippet
+          # lines always start with a "NN |" or "  |" gutter and cannot match.
+          # actionlint: one "path:line:col: message [kind]" line per issue. The path has
+          # no spaces, so a gutter line ("8 | x:1:2: y [z]") cannot pass for one.
+          al=$(strip "$al_out" | grep -cE '^[^[:space:]|:]+:[0-9]+:[0-9]+: .* \[[a-z-]+\]$' || true)
+          # zizmor: a final line of "No findings to report. Good job!" (optionally with a
+          # parenthetical such as "(6 ignored, 10 suppressed)"), or a summary such as
+          # "8 findings (3 suppressed, 2 unsafe fixes): 0 informational, 0 low, 2 medium,
+          # 3 high". The severity tally
+          # excludes suppressed findings, so its sum is what zizmor actually reported.
+          zz_last=$(strip "$zz_out" | grep -E '^(No findings to report\. Good job!( \([^)]*\))?|[0-9]+ findings?( \([^)]*\))?: [0-9]+ informational, [0-9]+ low, [0-9]+ medium, [0-9]+ high)$' | tail -1 || true)
+          case "$zz_last" in
+            "No findings to report"*) zz=0 ;;
+            "") zz="" ;;
+            *) zz=$(printf '%s\n' "${zz_last#*: }" | grep -oE '[0-9]+' | awk '{ s += $1 } END { if (NR) print s }') ;;
+          esac
+          [ "$al_rc" -eq 0 ] && al=0
+          [ "$zz_rc" -eq 0 ] && [ -z "$zz" ] && zz=0
+          # A failing tool that we read as clean is a parse we cannot trust: say so.
+          [ "$al_rc" -ne 0 ] && [ "$al" = 0 ] && al=""
+          [ "$zz_rc" -ne 0 ] && [ "$zz" = 0 ] && zz=""
+          {
+            echo "## GHA security: actionlint ${al:-?}, zizmor ${zz:-?}"
+            echo ""
+            echo "| Tool | Issues | Exit |"
+            echo "| --- | --- | --- |"
+            echo "| actionlint | ${al:-? (not read)} | $al_rc |"
+            echo "| zizmor | ${zz:-? (not read)} | $zz_rc |"
+            if [ "$rc" -ne 0 ]; then echo ""; echo "Details are in the job log."; fi
+          } >> "$GITHUB_STEP_SUMMARY"
+          counts="actionlint ${al:-?}, zizmor ${zz:-?}"
           if [ "$FAIL" = "true" ] && [ "$rc" -ne 0 ]; then
-            echo "::error::gha-security found issues"; exit "$rc"
+            echo "::error::gha-security found issues: $counts"; exit "$rc"
           fi
-          [ "$rc" -ne 0 ] && echo "::warning::gha-security found issues (fail-on-findings=false)"
+          [ "$rc" -ne 0 ] && echo "::warning::gha-security found issues: $counts (fail-on-findings=false)"
           true
