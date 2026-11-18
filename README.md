@@ -82,7 +82,10 @@ our persistent-memory-write demo, at 27/100 `CAUTION`, on a report whose single 
 
 **Reports to code scanning.** `sast.yml`, `codeql.yml`, and `iac-security.yml` emit SARIF and let
 you decide the gate, because a blanket fail-on-any-finding is how teams learn to ignore a scanner.
-Set your own thresholds in GitHub's code-scanning configuration.
+Set your own thresholds in GitHub's code-scanning configuration. Code scanning needs Advanced
+Security on a private repo, so `sast.yml` retains its SARIF as a run artifact wherever that upload
+is off or unavailable, and puts the finding count in the job summary either way. Reporting that you
+cannot read is not reporting.
 
 **Reports, and you choose.** `ai-review.yml` exposes a `findings-count` output so a calling job can
 fail when it is greater than zero. `security-scan.yml` takes a `fail-on-findings` input.
@@ -258,7 +261,7 @@ it ships with this pre-wired.
 | `security-audit.yml` | schedule | Repo settings: Dependabot alerts and auto-fix, Actions default permissions, delete-branch-on-merge, branch protection (rulesets or classic), SECURITY.md, declared vs actual visibility | Weekly is a sensible default. The four admin-only checks need repository `Administration: read`, which `GITHUB_TOKEN` cannot carry; without the optional `admin-token` secret they report a notice, not a verdict |
 | `gha-security.yml` | `workflow_call` | Audits the caller's Actions workflows with `gha-toolbox`: zizmor (expression and template injection, excessive permissions, unpinned actions) plus actionlint (syntax and embedded shell via shellcheck) | |
 | `skill-audit.yml` | `workflow_call` | SkillSpector for the agent-execution surface, plus the first-party `skill-testfile-gate` for the developer-execution and config-injection surfaces. Two layers: presence (inventory) and malice (a Semgrep rule pack that blocks and emits SARIF) | **Blocks.** Needs `security-events: write` and `packages: read`. See the [walkthrough](docs/gecko-vector-walkthrough.md) |
-| `sast.yml` | `workflow_call` | Semgrep OSS from `sast-toolbox`; SARIF to code scanning. Portable across public and private repos | |
+| `sast.yml` | `workflow_call` | Semgrep OSS from `sast-toolbox`; SARIF to code scanning, or retained as the `sast-sarif` run artifact where that upload is off or unavailable. Portable across public and private repos | Finding count, severity tally and located table in the job summary either way |
 | `codeql.yml` | `workflow_call` | Deep whole-program SAST. Most public repos are better served by GitHub's default setup; use this for a centralized or advanced setup | |
 | `iac-security.yml` | `workflow_call` | Checkov from `iac-toolbox`: Terraform, Dockerfiles, Kubernetes, Helm, CloudFormation; SARIF to code scanning | |
 | `ai-review.yml` | `workflow_call` | Wraps the official [anthropics/claude-code-security-review](https://github.com/anthropics/claude-code-security-review): Claude reviews the PR diff for injection, authorization, crypto, RCE, and business-logic flaws, with a second LLM pass to filter false positives | Opt-in. Needs `claude-api-key`. `findings-count` output, plus passthrough for model, excluded dirs, timeout, and custom instructions. Also available in Claude Code as `/security-review` |

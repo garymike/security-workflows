@@ -9,6 +9,38 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **`sast.yml` retains its findings instead of discarding them.** The workflow built a SARIF,
+  filtered it, and then had nowhere to put it: `Upload SARIF to code scanning` is gated on
+  `upload-sarif`, `Enforce fail-on-findings` on `fail-on-findings`, and there was no
+  artifact-upload step anywhere in the file (`grep -c upload-artifact` over it returned 0). With
+  both inputs false the job concluded success having retained nothing, so a finding existed only
+  as a line of plain stdout in a log nobody reads. Measured on a private caller's run against
+  `sast.yml` pinned at `d6dae17`: Semgrep reported `Ran 274 rules on 167 files: 5 findings`,
+  `Findings: 5 (5 blocking)`, both the upload and the enforce step concluded `skipped`, the run
+  reported `total_count=0` artifacts, and the job's only annotation was the unrelated
+  `ubuntu-latest` migration notice. Nine of the fourteen `sast.yml` call sites
+  in the estate pass `upload-sarif: false`, and all nine are private repos, because code scanning
+  needs Advanced Security on a private repo; those callers carry the comment "keep the artifact
+  instead", which nothing was doing. Two steps close it. The finding count, a severity tally and
+  a located table now go to `$GITHUB_STEP_SUMMARY`, counted after the suppression drop so the
+  number matches what code scanning would show rather than what Semgrep's exit code implies. The
+  SARIF and that summary are then uploaded as the `sast-sarif` artifact, with
+  `if-no-files-found: error` because a silently empty artifact is the bug being fixed, and
+  `retention-days: 30` because artifact storage is metered on a private repo. Both steps follow
+  repository visibility, read from the API (a scheduled run's event payload has none) and treated
+  as public when unknown, because on a public repo the run page and its artifacts are readable by
+  anyone while code-scanning alerts are not (anonymous `GET .../code-scanning/alerts` is 401,
+  `.../actions/runs` is 200). On a private repo the summary carries the located table and the
+  artifact is kept when `upload-sarif` is false or when a requested upload failed, so a private
+  caller that left the input at its default `true` and hit the same Advanced Security wall keeps
+  its evidence too. On a public repo the summary keeps the count and tally but withholds locations,
+  and no artifact is written: a fork PR's read-only token fails the upload, and falling back would
+  publish the findings list. Table cells pass an allowlist (`[A-Za-z0-9._/:@+=, -]`, truncated
+  first), because paths come from the scanned repo and a fork PR controls them. When findings exist
+  and `fail-on-findings` is off, the job also emits a `::warning::` carrying only the count, so the
+  number shows on the run page and the PR checks list while the job stays green: the gate remains
+  the caller's choice, and `fail-on-findings` still defaults to `false`, because every one of the
+  call sites relies on that default and eight private repos currently carry findings.
 - **`security-audit.yml` no longer warns about settings it cannot see.** Four of its checks
   (Dependabot alerts, Dependabot auto-fix, Actions default permissions, delete-branch-on-merge)
   and the classic branch-protection check read endpoints that need repository
