@@ -26,10 +26,14 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   number matches what code scanning would show rather than what Semgrep's exit code implies. The
   SARIF and that summary are then uploaded as the `sast-sarif` artifact, with
   `if-no-files-found: error` because a silently empty artifact is the bug being fixed, and
-  `retention-days: 30` because artifact storage is metered on a private repo. The artifact step is
-  keyed on the upload step's `outcome`, not on `inputs.upload-sarif`, so a private caller that
-  left the input at its default `true` and hit the same Advanced Security wall also keeps its
-  evidence.
+  `retention-days: 30` because artifact storage is metered on a private repo. The artifact is kept
+  when `upload-sarif` is false, and also when a requested upload *failed* on a private repo, so a
+  private caller that left the input at its default `true` and hit the same Advanced Security wall
+  keeps its evidence too. That fallback is private-only on purpose: on a public repo, run artifacts
+  are downloadable by anyone while code-scanning alerts are not, and a fork PR's read-only token
+  makes the upload fail, so falling back there would publish the findings list. Table cells are
+  escaped (newlines collapsed, pipes escaped, backticks replaced, length capped, severity held to
+  the known levels), because paths come from the scanned repo and a fork PR controls them.
 - **`security-audit.yml` no longer warns about settings it cannot see.** Four of its checks
   (Dependabot alerts, Dependabot auto-fix, Actions default permissions, delete-branch-on-merge)
   and the classic branch-protection check read endpoints that need repository
