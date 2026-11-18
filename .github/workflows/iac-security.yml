@@ -1,7 +1,10 @@
 name: IaC security (reusable)
 
 # Infrastructure-as-Code / misconfiguration scanning with the pinned iac-toolbox image
-# (Checkov). Emits SARIF and uploads it to GitHub code scanning.
+# (Checkov). Emits SARIF and uploads it to GitHub code scanning. Where that upload does
+# not happen (upload-sarif=false, which is what a private caller passes, because code
+# scanning needs Advanced Security on a private repo) the SARIF is retained as the
+# iac-sarif run artifact instead. The finding count always reaches the job summary.
 
 on:
   workflow_call:
@@ -102,12 +105,167 @@ jobs:
           print(f"dropped {dropped} suppressed result(s) from {path}")
           PY
 
+      - name: Summarise findings in the job summary
+        # Same gap as sast.yml had. With upload-sarif=false and fail-on-findings=false
+        # (what every private caller passes or inherits) the upload and enforce steps
+        # skip, the job concludes success, and "checkov finished (rc=1 ...)" is plain
+        # stdout, not an annotation: a private caller's run showed exactly that, with
+        # the job's only annotation being the unrelated ubuntu-latest notice. The count
+        # belongs here, where a reviewer sees it without opening the log. Counted after
+        # the suppression drop above, so it matches what code scanning would show.
+        id: summary
+        if: ${{ steps.checkov.outputs.sarif == 'true' }}
+        env:
+          UPLOAD_SARIF: ${{ inputs.upload-sarif }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          SARIF: out/results_sarif.sarif
+          SUMMARY: out/iac-summary.md
+          TITLE: IaC security (Checkov)
+          CATEGORY: checkov
+          ARTIFACT: iac-sarif
+          GATE: fail-on-findings
+          ENFORCED: ${{ inputs.fail-on-findings }}
+        run: |
+          # Repository visibility decides what may be written where. On a public repo the
+          # run page and its artifacts are readable by anyone, while code-scanning alerts
+          # are not (anonymous GET .../code-scanning/alerts is 401, .../actions/runs is
+          # 200), so a located table or a retained SARIF there would publish what code
+          # scanning withholds. Asked of the API, not read from github.event, because a
+          # scheduled run's payload has no repository. Unknown is treated as public.
+          private=$(gh api "repos/$GITHUB_REPOSITORY" --jq '.private' 2>/dev/null) || private=""
+          if [ "$private" != "true" ] && [ "$private" != "false" ]; then
+            private=unknown
+            echo "::warning::could not determine repository visibility; treating it as public (no locations in the summary, no SARIF artifact)"
+          fi
+          echo "private=$private" >> "$GITHUB_OUTPUT"
+          export REPO_PRIVATE="$private"
+          python3 - <<'PY'
+          import json, os, re
+
+          env = os.environ
+          private = env.get("REPO_PRIVATE") == "true"
+          uploading = env.get("UPLOAD_SARIF") == "true"
+          category, artifact = env["CATEGORY"], env["ARTIFACT"]
+
+          with open(env["SARIF"], encoding="utf-8") as handle:
+              doc = json.load(handle)
+
+          ORDER = {"error": 0, "warning": 1, "note": 2}
+
+          # Paths and rule ids come from the scanned repo, which a fork PR controls. Keep
+          # only the characters a rule id or a repo-relative path needs, so nothing in a
+          # cell can be read as table structure, a heading, or markup. Truncate first, so
+          # the cap cannot split anything.
+          UNSAFE = re.compile(r"[^A-Za-z0-9._/:@+=, -]")
+
+          def cell(value, limit=200):
+              return UNSAFE.sub("?", " ".join(str(value).split())[:limit])
+
+          rows = []
+          for run in doc.get("runs", []):
+              driver = run.get("tool", {}).get("driver", {})
+              default = {}
+              for rule in driver.get("rules", []):
+                  default[rule.get("id")] = rule.get("defaultConfiguration", {}).get("level", "warning")
+              for res in run.get("results", []):
+                  rule_id = res.get("ruleId")
+                  level = res.get("level") or default.get(rule_id, "warning")
+                  if level not in ORDER:
+                      level = "unknown"
+                  phys = (res.get("locations") or [{}])[0].get("physicalLocation", {})
+                  uri = phys.get("artifactLocation", {}).get("uri")
+                  start = phys.get("region", {}).get("startLine")
+                  if uri:
+                      if uri.startswith("/src/"):
+                          uri = uri[len("/src/"):]   # the scanner's container mount
+                      where = cell(uri + (":" + str(start) if start else ""))
+                  else:
+                      where = "(no location)"
+                  # Sanitise the untrusted values; the placeholders are ours.
+                  rows.append((level, cell(rule_id) if rule_id else "(unknown rule)", where))
+
+          rows.sort(key=lambda row: (ORDER.get(row[0], 3), row[1], row[2]))
+          total = len(rows)
+          counts = {}
+          for level, _rule, _where in rows:
+              counts[level] = counts.get(level, 0) + 1
+
+          out = ["## " + env["TITLE"] + ": " + str(total) + " finding" + ("" if total == 1 else "s"), ""]
+          if counts:
+              tally = sorted(counts.items(), key=lambda kv: ORDER.get(kv[0], 3))
+              out += [" / ".join("**" + str(n) + " " + lv + "**" for lv, n in tally), ""]
+          CAP = 50
+          if total and private:
+              out += ["| Severity | Rule | Location |", "| --- | --- | --- |"]
+              for level, rule, where in rows[:CAP]:
+                  out.append("| " + level + " | `" + rule + "` | `" + where + "` |")
+              if total > CAP:
+                  out += ["", "_... and " + str(total - CAP) + " more. The full set is in the SARIF._"]
+          elif total:
+              out.append("Locations are withheld here: this repo is not known to be private, and its "
+                         "run pages are readable by anyone while its code-scanning alerts are not.")
+          else:
+              out.append("No findings.")
+          out.append("")
+          if uploading and private:
+              out.append("These results go to GitHub code scanning (category `" + category + "`), "
+                         "so they also appear as alerts on the Security tab.")
+          elif private:
+              out.append("Code scanning upload is off for this caller, so the SARIF and this "
+                         "summary are attached to the run as the **" + artifact + "** artifact.")
+          elif uploading:
+              out.append("The located findings are on the Security tab (category `" + category + "`).")
+          else:
+              out.append("Code scanning upload is off and this repo is not known to be private, so "
+                         "no SARIF is retained either. Turn `upload-sarif` on to see these findings "
+                         "on the Security tab.")
+
+          body = "\n".join(out) + "\n"
+          with open(env["SUMMARY"], "w", encoding="utf-8") as handle:
+              handle.write(body)
+          with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
+              handle.write(body)
+          print(category + ": " + str(total) + " finding(s); written to the job summary")
+          # The count reaches the run page and the PR checks list, not only the summary,
+          # when nothing else will: with the gate off the job still concludes success.
+          # Only our own title, the count and the input name go into the command, never
+          # scanned-repo text. The gate itself stays the caller's choice.
+          if total and env.get("ENFORCED") != "true":
+              print("::warning title=" + env["TITLE"] + "::" + str(total) + " finding"
+                    + ("" if total == 1 else "s") + ", not enforced (" + env["GATE"]
+                    + "=false). See the job summary for details.")
+          PY
+
       - name: Upload SARIF to code scanning
+        id: code_scanning
         if: ${{ inputs.upload-sarif && steps.checkov.outputs.sarif == 'true' }}
         uses: github/codeql-action/upload-sarif@f58f0d11ebf5dedd870fab2f999275f7602cfa46 # codeql-bundle-v2.26.0
         with:
           sarif_file: out/results_sarif.sarif
           category: checkov
+
+      - name: Retain the SARIF as an artifact
+        # Without this the SARIF was built, filtered, and thrown away whenever the
+        # code-scanning upload did not happen. Retained only on a private repo, where an
+        # artifact reaches the same people as the code, on either of two triggers:
+        #   - upload-sarif=false: the caller chose the artifact.
+        #   - the requested upload failed (a private repo leaving the default true and
+        #     hitting the Advanced Security wall).
+        # Never on a public repo, or one whose visibility could not be read: run artifacts
+        # there are downloadable by anyone, code-scanning alerts are not, and a fork PR's
+        # read-only token makes the upload fail. if-no-files-found: error, because a
+        # silently empty artifact is the bug.
+        if: ${{ !cancelled() && steps.checkov.outputs.sarif == 'true' && steps.summary.outputs.private == 'true' && (!inputs.upload-sarif || steps.code_scanning.outcome == 'failure') }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: iac-sarif
+          path: |
+            out/results_sarif.sarif
+            out/iac-summary.md
+          if-no-files-found: error
+          # Long enough to triage, short enough not to accumulate: on a private repo
+          # artifact storage is metered against the account.
+          retention-days: 30
 
       - name: Enforce fail-on-findings
         if: ${{ inputs.fail-on-findings && steps.checkov.outputs.rc != '0' }}

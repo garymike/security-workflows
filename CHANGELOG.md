@@ -9,6 +9,27 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **`iac-security.yml` and `skill-audit.yml` retain their SARIF instead of discarding it**, the
+  same gap and the same fix as `sast.yml`. In both, the code-scanning upload was the only thing
+  that ever read the SARIF, and it is gated on `upload-sarif`; with it false, the file was built
+  and thrown away, and Checkov's `checkov finished (rc=1 ...)` line is plain stdout, not an
+  annotation. A private caller's run showed `iac-security.yml` with exactly the `sast.yml` shape:
+  upload and enforce `skipped`, job `success`, no artifact, and no annotation but the unrelated
+  `ubuntu-latest` notice. Four of the eight `iac-security.yml` call sites pass
+  `upload-sarif: false`, all private repos; no `skill-audit.yml` caller does today, so there it
+  was latent. Each workflow now writes the finding count, a severity tally and a located table to
+  `$GITHUB_STEP_SUMMARY`, and uploads the SARIF plus that summary as the `iac-sarif` or
+  `skill-audit-sarif` artifact. In `skill-audit.yml` both steps run under `!cancelled()`, because
+  the audit step exits non-zero when the gate blocks, and that is the run whose findings matter.
+  It covers the gate's malice layer only: SkillSpector writes no SARIF. The steps are the same
+  template as `sast.yml`'s (the embedded script is byte-identical across all three), so they
+  carry the same two guards: they follow repository visibility, withholding locations from the
+  summary and writing no artifact on a repo not known to be private, because there run pages and
+  artifacts are readable by anyone while code-scanning alerts are not; and table cells pass a
+  character allowlist, because paths come from the scanned repo and a fork PR controls them. When
+  findings exist and the relevant gate is off (`fail-on-findings` for Checkov,
+  `gate-fail-on-findings` for the skill gate), the job emits a `::warning::` carrying only the
+  count, so it shows on the run page and the PR checks list; no gate default changed.
 - **`sast.yml` retains its findings instead of discarding them.** The workflow built a SARIF,
   filtered it, and then had nowhere to put it: `Upload SARIF to code scanning` is gated on
   `upload-sarif`, `Enforce fail-on-findings` on `fail-on-findings`, and there was no
