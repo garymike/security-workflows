@@ -9,6 +9,24 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Fixed
+- **`security-scan.yml` and `gha-security.yml` report how much they found, not only that they
+  found something.** Neither writes SARIF, and both already annotated a non-clean run, but the
+  annotation said "betterleaks reported potential secrets" or "gha-security found issues" with
+  no number, and nothing reached the job summary. Each tool's output is now tee'd (with
+  `pipefail`, so each exit code is still the tool's own) and the count is parsed from it. Formats
+  were measured on the pinned images, not assumed: betterleaks ends with `leaks found: N` or
+  `no leaks found`; actionlint prints one `path:line:col:` line per issue, plus source-snippet
+  lines that are not counted; zizmor closes with a summary such as `8 findings (3 suppressed, 2
+  unsafe fixes): 0 informational, 0 low, 2 medium, 3 high`, whose severity tally excludes
+  suppressed findings and is what gets summed. The count goes to `$GITHUB_STEP_SUMMARY` and into
+  the existing annotation. All three tools echo snippets of the scanned files, which a fork PR
+  controls, so every match is anchored to a whole line in the tool's own format (snippet lines
+  start with a gutter or box characters and cannot match): otherwise a workflow line containing
+  `No findings to report` would read as zero. An unreadable count, or a failing tool read as
+  clean, shows as `?` rather than a false `0`. Counts only:
+  no rule, path or excerpt reaches the summary, and nothing is retained as an artifact, because a
+  secret-scan report on a public repo's run page is a map of where to look. Exit codes and
+  `fail-on-findings` behaviour are unchanged.
 - **`iac-security.yml` and `skill-audit.yml` retain their SARIF instead of discarding it**, the
   same gap and the same fix as `sast.yml`. In both, the code-scanning upload was the only thing
   that ever read the SARIF, and it is gated on `upload-sarif`; with it false, the file was built
