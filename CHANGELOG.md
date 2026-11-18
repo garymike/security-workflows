@@ -36,7 +36,11 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   its evidence too. On a public repo the summary keeps the count and tally but withholds locations,
   and no artifact is written: a fork PR's read-only token fails the upload, and falling back would
   publish the findings list. Table cells pass an allowlist (`[A-Za-z0-9._/:@+=, -]`, truncated
-  first), because paths come from the scanned repo and a fork PR controls them.
+  first), because paths come from the scanned repo and a fork PR controls them. When findings exist
+  and `fail-on-findings` is off, the job also emits a `::warning::` carrying only the count, so the
+  number shows on the run page and the PR checks list while the job stays green: the gate remains
+  the caller's choice, and `fail-on-findings` still defaults to `false`, because every one of the
+  call sites relies on that default and eight private repos currently carry findings.
 - **`security-audit.yml` no longer warns about settings it cannot see.** Four of its checks
   (Dependabot alerts, Dependabot auto-fix, Actions default permissions, delete-branch-on-merge)
   and the classic branch-protection check read endpoints that need repository

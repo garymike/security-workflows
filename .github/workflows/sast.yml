@@ -128,6 +128,8 @@ jobs:
           TITLE: SAST (Semgrep)
           CATEGORY: semgrep
           ARTIFACT: sast-sarif
+          GATE: fail-on-findings
+          ENFORCED: ${{ inputs.fail-on-findings }}
         run: |
           # Repository visibility decides what may be written where. On a public repo the
           # run page and its artifacts are readable by anyone, while code-scanning alerts
@@ -229,6 +231,14 @@ jobs:
           with open(env["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as handle:
               handle.write(body)
           print(category + ": " + str(total) + " finding(s); written to the job summary")
+          # The count reaches the run page and the PR checks list, not only the summary,
+          # when nothing else will: with the gate off the job still concludes success.
+          # Only our own title, the count and the input name go into the command, never
+          # scanned-repo text. The gate itself stays the caller's choice.
+          if total and env.get("ENFORCED") != "true":
+              print("::warning title=" + env["TITLE"] + "::" + str(total) + " finding"
+                    + ("" if total == 1 else "s") + ", not enforced (" + env["GATE"]
+                    + "=false). See the job summary for details.")
           PY
 
       - name: Upload SARIF to code scanning
