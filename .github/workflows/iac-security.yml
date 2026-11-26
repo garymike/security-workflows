@@ -17,6 +17,14 @@ on:
         description: 'Checkov frameworks (comma-separated) or "all"'
         type: string
         default: 'all'
+      skip-frameworks:
+        description: >-
+          Checkov frameworks to skip, comma-separated (default: none), e.g. "kubernetes,helm".
+          Names are Checkov's own (terraform, dockerfile, ansible, github_actions, yaml, ...);
+          an unknown name fails the job rather than silently scanning everything. Note that
+          Checkov has no Docker Compose framework.
+        type: string
+        default: ''
       fail-on-findings:
         description: 'Fail the job on Checkov findings (false = warn only)'
         type: boolean
@@ -25,6 +33,14 @@ on:
         description: 'Upload results to GitHub code scanning'
         type: boolean
         default: true
+      runner:
+        description: >-
+          Runner for the job: a label (default ubuntu-latest) or a JSON array of labels such
+          as ["self-hosted","ci-apps"]. The job checks out and scans PR code, so point it only
+          at a disposable, credential-free runner. See "Can I run it on a self-hosted runner?"
+          in the README.
+        type: string
+        default: 'ubuntu-latest'
 
 permissions:
   contents: read
@@ -32,7 +48,8 @@ permissions:
 jobs:
   iac-security:
     name: IaC security (Checkov)
-    runs-on: ubuntu-latest
+    # A plain label, or a JSON array of labels (see the runner input).
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     # Bound, because the default is 360 minutes. This workflow is reusable,
     # so one wedged job spends a caller's quota, not ours.
     # 2.5x the worst of five observed runs (35s), rounded up.
@@ -45,6 +62,13 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+
+      # Keep the GHCR login out of ~/.docker. A hosted runner is discarded after the job, but
+      # on a self-hosted runner ~/.docker outlives it, and a token written there is a credential
+      # left behind on the machine. The runner empties RUNNER_TEMP at the start and end of
+      # every job.
+      - name: Keep registry credentials in the job's temp dir
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
 
       - name: Log in to GHCR (to pull the pinned image)
         env:
@@ -61,19 +85,37 @@ jobs:
           IMAGE: ghcr.io/garymike/security-workflows/iac-toolbox@sha256:697107bb683f168a77b4ac2e6c0683629853780525c66ad2c7919961bff1f418
           SCAN_PATH: ${{ inputs.path }}
           FRAMEWORK: ${{ inputs.framework }}
+          SKIP_FRAMEWORKS: ${{ inputs.skip-frameworks }}
         run: |
           set -uo pipefail
           docker pull "$IMAGE"
           mkdir -p out && chmod 777 out
           rc=0
+          # Whitespace is dropped so "kubernetes, helm" works: Checkov splits on commas and
+          # would otherwise reject " helm" as an unknown framework. Passed as one argument,
+          # never word-split, and only when set, so the default command line is unchanged.
+          skip=()
+          SKIP_FRAMEWORKS=$(printf '%s' "$SKIP_FRAMEWORKS" | tr -d '[:space:]')
+          if [ -n "$SKIP_FRAMEWORKS" ]; then
+            skip=(--skip-framework "$SKIP_FRAMEWORKS")
+            echo "checkov: skipping frameworks: $SKIP_FRAMEWORKS"
+          fi
           # Checkov's stdout isn't clean SARIF (it prints a banner), so write to a file via
           # --output-file-path. chmod 777 lets the container's unprivileged user write there.
           docker run --rm -v "$PWD:/src:ro" -v "$PWD/out:/out" -w /src "$IMAGE" \
-            checkov -d "/src/$SCAN_PATH" --framework "$FRAMEWORK" --compact --quiet --output sarif --output-file-path /out || rc=$?
+            checkov -d "/src/$SCAN_PATH" --framework "$FRAMEWORK" ${skip[@]+"${skip[@]}"} --compact --quiet --output sarif --output-file-path /out || rc=$?
           sarif=false; [ -s out/results_sarif.sarif ] && sarif=true
           echo "rc=$rc" >> "$GITHUB_OUTPUT"
           echo "sarif=$sarif" >> "$GITHUB_OUTPUT"
           echo "checkov finished (rc=$rc; non-zero = findings)"
+          # Findings exit 1 *and* write SARIF. A non-zero exit with no SARIF is Checkov failing
+          # to run: an unknown framework or skip-framework name, a bad path, a crash. Every
+          # later step is gated on the SARIF, so without this the job concluded success having
+          # scanned nothing, which reads as covered on every check that looks at it.
+          if [ "$rc" -ne 0 ] && [ "$sarif" != true ]; then
+            echo "::error::checkov exited $rc without writing SARIF, so nothing was scanned. Check the framework, skip-frameworks and path inputs against the log above."
+            exit 1
+          fi
 
       - name: Drop suppressed results from the SARIF
         # Checkov honours an inline `# checkov:skip=CKV_...: reason` when it scans (the

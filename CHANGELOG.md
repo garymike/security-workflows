@@ -8,7 +8,42 @@ versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- **`runner` input on `security-scan`, `gha-security`, `sast`, `iac-security` and
+  `security-audit`.** A label, or a JSON array of labels (`'["self-hosted","ci-apps"]'`, parsed
+  with `fromJSON` when the value starts with `[`), used as the job's `runs-on`. The default is
+  `ubuntu-latest`, so existing callers run exactly where they did. It exists for private repos
+  over their Actions budget. These jobs check out and parse PR code, so the README's new
+  self-hosted runner section requires a disposable, credential-free, ephemeral runner on a
+  private repo, and lists the network and Docker access the jobs need. Every job that logs in to
+  GHCR now writes that login under `RUNNER_TEMP` (`DOCKER_CONFIG`) instead of `~/.docker`. A
+  hosted runner is discarded anyway, but on a persistent self-hosted runner the token would have
+  outlived the job.
+- **`secret-scan` input on `security-scan.yml`** (default `true`). `false` skips only the GHCR
+  login and the betterleaks step, for callers that already gate every change on an equivalent
+  scan. The action-pinning, dated-pin and SECURITY.md checks still run. A skipped scan leaves a
+  `::notice::` and says "skipped by the caller" in the job summary, so it can't be mistaken for
+  a clean scan.
+- **`skip-frameworks` input on `iac-security.yml`** (default empty). Passed to Checkov as
+  `--skip-framework`, comma-separated, with whitespace dropped. The default command line is
+  unchanged. Checkov validates the names, and the job now fails on a wrong one (see Fixed).
+  Checkov has no Docker Compose framework. On the caller that prompted this, every one of 8
+  results was `ansible` or `github_actions`, and none were on a compose file.
+
+### Changed
+- **The README caller template no longer triggers on `push: main`.** It now runs on
+  `pull_request`, a weekly `schedule` and `workflow_dispatch`. Behind a ruleset that requires PRs
+  with these checks, the push after a squash merge re-scans the tree its PR just scanned.
+  `push: main` stays in the template as a commented opt-in for repos that allow direct pushes.
+  Existing callers are untouched; this only changes what new ones copy.
+
 ### Fixed
+- **`iac-security.yml` no longer passes when Checkov fails to run.** A non-zero exit with no
+  SARIF (an unknown `framework` or `skip-frameworks` name, a bad `path`, a crash) skipped every
+  later step, because each one is gated on the SARIF, so the job concluded success having scanned
+  nothing. It now fails with an error naming the inputs to check. Findings still exit 1 and write
+  SARIF, so they behave as before.
+
 - **`security-scan.yml` and `gha-security.yml` report how much they found, not only that they
   found something.** Neither writes SARIF, and both already annotated a non-clean run, but the
   annotation said "betterleaks reported potential secrets" or "gha-security found issues" with
