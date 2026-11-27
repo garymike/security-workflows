@@ -7,6 +7,21 @@ on:
         description: 'Fail the workflow if secrets are detected (false = warn only)'
         type: boolean
         default: true
+      secret-scan:
+        description: >-
+          Run the betterleaks secret scan (false = skip it). For callers that already gate
+          every change on an equivalent scan of their own. The action-pinning and SECURITY.md
+          checks run either way.
+        type: boolean
+        default: true
+      runner:
+        description: >-
+          Runner for the job: a label (default ubuntu-latest) or a JSON array of labels such
+          as ["self-hosted","ci-apps"]. The job checks out and scans PR code, so point it only
+          at a disposable, credential-free runner. See "Can I run it on a self-hosted runner?"
+          in the README.
+        type: string
+        default: 'ubuntu-latest'
 
 permissions:
   contents: read
@@ -19,7 +34,8 @@ permissions:
 jobs:
   scan:
     name: Security scan
-    runs-on: ubuntu-latest
+    # A plain label, or a JSON array of labels (see the runner input).
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     # Bound, because the default is 360 minutes. This workflow is reusable,
     # so one wedged job spends a caller's quota, not ours.
     # 2.5x the worst of five observed runs (27s), rounded up: GitHub
@@ -90,13 +106,29 @@ jobs:
             echo "::warning::SECURITY.md is missing. Add one to define your vulnerability disclosure process."
           fi
 
+      - name: Secret scan skipped by the caller
+        if: ${{ !inputs.secret-scan }}
+        run: |
+          echo "::notice::Secret scan skipped (secret-scan: false). The caller is responsible for an equivalent scan."
+          echo "## Secret scan (betterleaks): skipped by the caller (\`secret-scan: false\`)" >> "$GITHUB_STEP_SUMMARY"
+
+      # Keep the GHCR login out of ~/.docker. A hosted runner is discarded after the job, but
+      # on a self-hosted runner ~/.docker outlives it, and a token written there is a credential
+      # left behind on the machine. The runner empties RUNNER_TEMP at the start and end of
+      # every job.
+      - name: Keep registry credentials in the job's temp dir
+        if: ${{ inputs.secret-scan }}
+        run: echo "DOCKER_CONFIG=$RUNNER_TEMP/docker-config" >> "$GITHUB_ENV"
+
       - name: Log in to GHCR (to pull the pinned image)
+        if: ${{ inputs.secret-scan }}
         env:
           ACTOR: ${{ github.actor }}
           TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: echo "$TOKEN" | docker login ghcr.io -u "$ACTOR" --password-stdin
 
       - name: Secret scan via the pinned toolbox image
+        if: ${{ inputs.secret-scan }}
         env:
           # Pinned by digest, not :latest. A rebuild of the toolbox used to change
           # what every caller scanned with, without any caller changing a line --

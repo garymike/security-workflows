@@ -19,6 +19,16 @@ name: Security audit (reusable)
 
 on:
   workflow_call:
+    inputs:
+      runner:
+        description: >-
+          Runner for the job: a label (default ubuntu-latest) or a JSON array of labels such
+          as ["self-hosted","ci-apps"]. Point it only at a disposable, credential-free runner:
+          if the caller passes admin-token, that token is in this job's environment, and on a
+          shared runner other jobs' code runs on the same machine. See "Can I run it on a
+          self-hosted runner?" in the README.
+        type: string
+        default: 'ubuntu-latest'
     secrets:
       admin-token:
         description: >-
@@ -33,7 +43,8 @@ permissions:
 jobs:
   audit:
     name: Repository security settings
-    runs-on: ubuntu-latest
+    # A plain label, or a JSON array of labels (see the runner input).
+    runs-on: ${{ startsWith(inputs.runner, '[') && fromJSON(inputs.runner) || inputs.runner }}
     # Bound, because the default is 360 minutes. This workflow is reusable,
     # so one wedged job spends a caller's quota, not ours.
     # 2.5x the worst of five observed runs (11s), at the floor.

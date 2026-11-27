@@ -145,7 +145,62 @@ the long pole wherever it is enabled and is usually better served by GitHub's de
 `ai-review.yml` adds per-run API cost on top of time.
 
 The usage snippet below sets `concurrency` with `cancel-in-progress`, so rapid pushes cancel
-superseded runs instead of double-billing.
+superseded runs instead of double-billing. It also triggers on PRs and a weekly schedule but not
+on push to main, because behind a PR-required ruleset that push re-scans a tree its PR just
+scanned. Add `push: main` back only where direct pushes are allowed.
+
+Three inputs trim the bill further on a private repo:
+
+- `runner` (every reusable workflow) moves the job off GitHub-hosted runners; see the next
+  question.
+- `secret-scan: false` (`security-scan.yml`) skips betterleaks when the caller already gates every
+  change on an equivalent scan, for example gitleaks in pre-commit plus a full-history scan in its
+  own CI, reading the same `.gitleaksignore`. The action-pinning and SECURITY.md checks still run,
+  and the job summary says the scan was skipped rather than reporting zero findings.
+- `skip-frameworks` (`iac-security.yml`) drops Checkov frameworks that something stricter already
+  covers, for example `kubernetes,helm`. The names are Checkov's own, and a wrong one fails the job.
+  Checkov has no Docker Compose framework, so it cannot be skipped to defer to a compose policy.
+
+### Can I run it on a self-hosted runner?
+
+Yes. Every reusable workflow takes a `runner` input: a label, or a JSON array of labels.
+
+```yaml
+  scan:
+    uses: garymike/security-workflows/.github/workflows/security-scan.yml@<SHA>
+    with:
+      runner: '["self-hosted","ci-apps"]'   # or a single label: ci-apps
+```
+
+The default is `ubuntu-latest`, and public repos should keep it: hosted runners are free there,
+and a public repo's PRs can come from anyone.
+
+**Point it only at a disposable, credential-free runner.** These jobs check out and scan PR code,
+and the scanners parse that code, so a scanner bug or a hostile file runs with whatever the runner
+can reach. Concretely:
+
+- **Ephemeral**: a fresh VM or container per job (`--ephemeral` registration), so nothing one job
+  leaves behind is there for the next. A long-lived runner that also builds, deploys or holds a
+  cloud role turns "scan a PR" into "run a PR's input next to those credentials".
+- **No standing credentials**: no cloud keys, SSH keys, kubeconfig, `.netrc` or registry logins on
+  the machine. The jobs need only the `GITHUB_TOKEN` GitHub issues per run, plus outbound HTTPS to
+  GitHub (`github.com`, `api.github.com`, `ghcr.io` and its blob host) and, for `sast.yml` with a
+  registry pack such as the default `p/default`, to `semgrep.dev`, which serves the rules at run
+  time. They write their GHCR login under `RUNNER_TEMP`, which the runner empties at the start and
+  end of each job, not to `~/.docker`.
+- **No reach into anything that matters**: put it on a network segment that cannot reach your
+  hosts, NAS or management interfaces.
+- **Docker** is required (every job except `security-audit` runs its scanner as a container), and
+  the user running the jobs needs access to the Docker socket. On a persistent host that socket is
+  root-equivalent, which is one more reason to keep the runner disposable.
+- **Private repos only.** GitHub's own guidance is not to attach self-hosted runners to public
+  repositories, because any fork PR can run on them.
+- **`security-audit` with `admin-token`**: the token sits in that job's environment, so the runner
+  must not be shared with anything less trusted than the repo itself.
+
+Each job's `timeout-minutes` is calibrated on hosted runners, where the toolbox images pull in
+seconds. A self-hosted runner pulling them cold over a slow link can exceed it on the first run;
+pre-pull the digests from the workflow files, or keep a warm image cache on the runner image.
 
 ### Can I run it on my own machine, without Docker, or offline?
 
@@ -213,17 +268,19 @@ Start with the two that need no configuration, then add the reusable ones you wa
 name: Security
 
 on:
-  # Scan pushes to the default branch and every PR. Feature-branch pushes are
-  # already covered by their PR, so scanning every branch push too
-  # (branches: ["**"]) double-bills Actions minutes on private repos. Public
-  # repos have free Actions and may broaden to branches: ["**"] if they want
-  # direct-push coverage on branches that never open a PR.
-  push:
-    branches: [main]
+  # Every PR, plus a weekly scan of the default branch. If a ruleset requires PRs
+  # with these checks, a push to main is a squash merge of a tree that was just
+  # scanned on its PR, so a push trigger repeats the same work. The schedule
+  # covers main independently (and the audit job runs only there).
   pull_request:
   schedule:
     - cron: '0 8 * * 1'
   workflow_dispatch:
+  # Opt in only if the repo allows direct pushes to main, which no PR scan sees:
+  # push:
+  #   branches: [main]
+  # Feature-branch pushes are already covered by their PR, so don't broaden this
+  # to branches: ["**"] on a private repo; it double-bills Actions minutes.
 
 # Cancel superseded runs on the same ref (rapid pushes / PR updates).
 concurrency:
@@ -258,14 +315,17 @@ it ships with this pre-wired.
 
 | Workflow | Call style | What it does | Notes |
 |---|---|---|---|
-| `security-scan.yml` | push / PR | Secret scanning (betterleaks from the pinned image), unpinned-action detection, SECURITY.md presence | `fail-on-findings` input. The potential-secret count goes to the job summary; details stay in the log, redacted |
+| `security-scan.yml` | push / PR | Secret scanning (betterleaks from the pinned image), unpinned-action detection, SECURITY.md presence | `fail-on-findings` input; `secret-scan: false` skips betterleaks only. The potential-secret count goes to the job summary; details stay in the log, redacted |
 | `security-audit.yml` | schedule | Repo settings: Dependabot alerts and auto-fix, Actions default permissions, delete-branch-on-merge, branch protection (rulesets or classic), SECURITY.md, declared vs actual visibility | Weekly is a sensible default. The four admin-only checks need repository `Administration: read`, which `GITHUB_TOKEN` cannot carry; without the optional `admin-token` secret they report a notice, not a verdict |
 | `gha-security.yml` | `workflow_call` | Audits the caller's Actions workflows with `gha-toolbox`: zizmor (expression and template injection, excessive permissions, unpinned actions) plus actionlint (syntax and embedded shell via shellcheck) | Per-tool issue counts in the job summary and the annotation |
 | `skill-audit.yml` | `workflow_call` | SkillSpector for the agent-execution surface, plus the first-party `skill-testfile-gate` for the developer-execution and config-injection surfaces. Two layers: presence (inventory) and malice (a Semgrep rule pack that blocks and emits SARIF) | **Blocks.** Needs `security-events: write` and `packages: read`. Gate SARIF retained as the `skill-audit-sarif` artifact where it is not uploaded; gate finding count in the job summary. See the [walkthrough](docs/gecko-vector-walkthrough.md) |
 | `sast.yml` | `workflow_call` | Semgrep OSS from `sast-toolbox`; SARIF to code scanning, or retained as the `sast-sarif` run artifact where that upload is off or unavailable. Portable across public and private repos | Finding count, severity tally and located table in the job summary either way |
 | `codeql.yml` | `workflow_call` | Deep whole-program SAST. Most public repos are better served by GitHub's default setup; use this for a centralized or advanced setup | |
-| `iac-security.yml` | `workflow_call` | Checkov from `iac-toolbox`: Terraform, Dockerfiles, Kubernetes, Helm, CloudFormation; SARIF to code scanning, or retained as the `iac-sarif` run artifact where that upload is off (or fails on a private repo) | Finding count, severity tally and located table in the job summary either way |
+| `iac-security.yml` | `workflow_call` | Checkov from `iac-toolbox`: Terraform, Dockerfiles, Kubernetes, Helm, CloudFormation; SARIF to code scanning, or retained as the `iac-sarif` run artifact where that upload is off (or fails on a private repo) | `framework` and `skip-frameworks` inputs. Finding count, severity tally and located table in the job summary either way. Fails if Checkov exits without writing SARIF |
 | `ai-review.yml` | `workflow_call` | Wraps the official [anthropics/claude-code-security-review](https://github.com/anthropics/claude-code-security-review): Claude reviews the PR diff for injection, authorization, crypto, RCE, and business-logic flaws, with a second LLM pass to filter false positives | Opt-in. Needs `claude-api-key`. `findings-count` output, plus passthrough for model, excluded dirs, timeout, and custom instructions. Also available in Claude Code as `/security-review` |
+
+`security-scan`, `gha-security`, `sast`, `iac-security` and `security-audit` all take a `runner`
+input (default `ubuntu-latest`); see [self-hosted runners](#can-i-run-it-on-a-self-hosted-runner).
 
 The toolbox images are runnable outside CI too: `docker run` them directly, or use the composite
 action at [`actions/toolbox-scan`](actions/toolbox-scan). See [`toolbox/README.md`](toolbox/README.md).

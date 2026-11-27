@@ -36,6 +36,10 @@ jobs:
       contents: read
       packages: read
     uses: ./.github/workflows/gha-security.yml
+    with:
+      # The JSON-array form of the runner input, resolving to the same hosted runner as the
+      # default. Every other job here uses the plain-label default, so both paths run on each PR.
+      runner: '["ubuntu-latest"]'
 
   sast:
     permissions:
@@ -62,3 +66,27 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/security-audit.yml
+
+  # Input proofs: the non-default paths of the opt-out inputs, so a change that breaks one of
+  # them fails here rather than in the first caller to pass it. Coverage comes from the jobs
+  # above; these only prove the inputs run.
+  security-scan-no-secret-scan:
+    permissions:
+      contents: read
+      packages: read
+    uses: ./.github/workflows/security-scan.yml
+    with:
+      secret-scan: false
+
+  iac-security-skip-frameworks:
+    permissions:
+      contents: read
+      packages: read
+      security-events: write
+    uses: ./.github/workflows/iac-security.yml
+    with:
+      # The space is deliberate: it proves whitespace is dropped. A name Checkov rejected would
+      # fail the job (exit without SARIF), so a green run means Checkov accepted the list.
+      skip-frameworks: 'kubernetes, helm'
+      # Off so this run's SARIF never replaces the iac-security job's in code scanning.
+      upload-sarif: false
